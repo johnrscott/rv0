@@ -12,6 +12,8 @@ chmod u+x FPGAs_AdaptiveSoCs_Unified_2023.2_1013_2256_Lin64.bin
 
 Ignore the warning about unsupported OS if you get it. Put in your login details, and progress to install Vivado. Choose to install Vivado ML Standard. Choose the devices you want to install (at least Artix-7), and progress to choose an install location. By installing less devices, the download size and disk space requirement will be minimised. Pick `$HOME/tools/Xilinx` and begin the download/install.
 
+Once the installation is complete, source the `settings64.sh` in the Xilinx directory. You can do this by modifying the environment variables in `settings.sh` (in this repository) and then running `. settings.sh` (note the dot).
+
 To install the board support files, clone the following repository to some location:
 
 ```bash
