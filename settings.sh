@@ -6,7 +6,7 @@
 #
 # . settings.sh
 
-XILINX_PATH=$HOME$HOME/tools/Xilinx
+XILINX_PATH=$HOME/tools/Xilinx
 VIVADO_VERSION=2023.2
 
-. $XILINX_PATH/tools/Xilinx/Vivado/$VIVADO_VERSION/settings64.sh
+. $XILINX_PATH/Vivado/$VIVADO_VERSION/settings64.sh
