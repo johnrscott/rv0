@@ -1,0 +1,14 @@
+# Vivado files
+*.jou
+*.log
+*.cache
+*.gen
+*.hw
+*.ioplanning
+*.ip_user_files
+*.sim
+*.runs
+*.str
+
+# Emacs autosaves
+*~
