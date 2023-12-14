@@ -11,6 +11,7 @@ The core should have the following features:
 * [Advanced Core local interrupter](https://github.com/riscv/riscv-aclint/blob/main/riscv-aclint.adoc)-compatible interrupt controller.
 * Minimal debugging implementation
 * On-chip SRAM (400 KiB)
+* On-chip EEPROM (384 KiB)
 
 The core should have at least these peripherals (no pin remapping for simplicity -- mapping to be handled at the FPGA pin mapping level):
 

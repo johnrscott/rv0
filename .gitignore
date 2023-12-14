@@ -10,6 +10,7 @@
 *.runs
 *.str
 .Xil
+*.tmp
 
 # Emacs autosaves
 *~
