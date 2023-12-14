@@ -25,13 +25,13 @@ module shift_tb();
     
         // Update the shift amount to 8 bits and test output
         shamt = 8;
-        # 1 assert (shifted == 32'h000f_0000)
+        #1 assert (shifted == 32'h000f_0000)
             else $error("wrong after right shift by 8");
     
         // Now set the right shift input and chek result
         shamt = 8;
         right = 1;
-        # 1 assert (shifted == 32'h0000_000f)
+        #1 assert (shifted == 32'h0000_000f)
             else $error("wrong after left shift by 8");       
     
         // Check a logical right shift
@@ -39,7 +39,7 @@ module shift_tb();
         shamt = 3;
         right = 1;
         arith = 0;
-        # 1 assert (shifted == 32'h1000_0000)
+        #1 assert (shifted == 32'h1000_0000)
             else $error("wrong after logical right shift by 3");  
             
         // Check an arithmetic right shift         
@@ -47,7 +47,7 @@ module shift_tb();
         shamt = 3;
         right = 1;
         arith = 1;
-        # 1 assert (shifted == 32'hf000_0000)
+        #1 assert (shifted == 32'hf000_0000)
             else $error("wrong after arithmetic right shift by 3");          
     
     end
