@@ -9,6 +9,7 @@
 *.sim
 *.runs
 *.str
+.Xil
 
 # Emacs autosaves
 *~
