@@ -26,19 +26,16 @@ The ALU outputs the following flags:
 
 ## Comparing signed and unsigned integers
 
-The branch instructions require comparing two numbers and deciding which one is larger, in both the signed and unsigned cases.
+The branch instructions require comparing two numbers and deciding which one is larger, in both the signed and unsigned cases. See [here](https://news.ycombinator.com/item?id=8797481); in summary, to compare `a` and `b`, subtract `a - b` using the ALU and use the flags as follows:
 
-### Signed case
+For unsigned numbers:
+* `a == b`: `zero`
+* `a < b`: `carry`
+* `a >= b`: `!carry`
 
-Given two integers `a` and `b`, `a < b` iff `a - b < 0`. One could attempt to check this condition (and conclude that `a` is less than `b`) in 32-bit two's complement arithmetic by checking whether the sign bit (bit 31) is set. However, this will not always work, because there are cases when `a` is negative and `b` is positive, but `a - b` in two's complement arithmetic is positive (so the sign bit is not set). For example, if `a = -2^31` (`0x8000_0000`, the smallest expressible negative number) and `b = 1`, then
+For signed numbers:
+* `a == b`: `zero`
+* `a < b`: `sign != overflow` 
+* `a >= b`: `sign == overflow` 
 
-`a - b` = `a + !b + 1` = `0x8000_0000 + 0xffff_fffe + 1` = `0x1_7fff_ffff`,
-
-which is `0x7fff_ffff` when truncated to 32 bits (i.e. the sign bit is zero).
-
-The issue occurs when the expression `a - b` overflows. There are two cases when this expression can overflow:
-
-1. if `a` is negative and `b` is positive, but `a - b` is positive
-2. if `a` is positive and `b` is negative, but `a - b` is negative
- 
-
+In the RISC-V instruction set, the ALU implements `slt` and `sltu`, which sets the least significant bit of the output to the relevant calculation above. Branch instructions like `blt`, `bltu`, `bge`, and `bgeu` can use this output instead of calculation with the flags directly. (In this case it may not even be necessary to have the ALU output the flags.)
