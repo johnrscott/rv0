@@ -131,7 +131,7 @@ This presents a draft of the different components of the data path, focusing on 
 
 ### Raising an exception
 
-The exception mechanism is partly implemented in the data path and partly in the control unit.
+The exception mechanism is partly implemented in the data path and partly in the control unit. The policy for raising an exception in this single-cycle design is that no combinational calculation which caused the exception to be raised can be modified by the exception (otherwise there would be a circular dependency in the calculation). As a result, extra logic may need to be implemented that disables any actions that would be taken where there is no exception, in cases where disabling an action would also de-assert the exception itself.
 
 Due to the results of calculations performed in the combinational work of an instruction, the data path may need to raise an exception. When this happens, the instruction should be prevented from registering the results of the instruction that would occur if no exception occurred, by having the control unit disable these writes. In addition, the following actions take place when an exception is raised:
 * the `mepc` CSR is set to `pc`
@@ -141,7 +141,7 @@ Due to the results of calculations performed in the combinational work of an ins
 
 Note that many of these steps also happen for an `interrupt` (they are generic trap steps). However, an interrupt sets a different `mepc` value and `mcause`, and jumps to a vectored interrupt).
 
-### Calculation of next `pc`
+### Calculation of next `pc` (combinational)
 
 The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
 * `A = pc`, `B = 4`: most instructions
@@ -159,7 +159,7 @@ The module that will calculate the `pc` is called `next_pc`, and has the followi
 ```verilog
 /// Combinational module to calculate the next value of
 /// the program counter. The control signal pc_src sets
-/// the calculation of maybe_next_pc as follows
+/// the calculation of maybe_next_pc as follows:
 ///
 /// pc_src  maybe_next_pc
 ///  00      pc + 4
@@ -201,3 +201,114 @@ module next_pc(
 	output instr_addr_mis, // flag for instruction address misaligned exception
 	);
 ```
+
+### `pc` (sequential)
+
+The current `pc` is a single 32-bit register, which is loaded on the rising edge of the clock from the output of `next_pc`.
+
+```verilog
+reg [31:0] pc;
+wire [31:0] next_pc; // output from next_pc instance
+
+always @(posedge clk) begin
+	pc <= next_pc
+end
+```
+
+No check is performed for address alignment, because that is checked in `next_pc`.
+
+### Instruction fetch at `pc` (combinational)
+
+The instruction memory is an instance of a `instr_mem` module, which has the following signature:
+
+```verilog
+/// Fetch an instruction from program memory
+///
+/// The instruction memory is preloaded with instructions at
+/// synthesis time in this design. It is combinational, so the
+/// output changes directly with the input pc. No checking is
+/// performed for pc 4-byte alignment (the lower 2 bits of pc
+/// are just ignored).
+///
+/// An InstructionAccessFault exception is raised if the pc is 
+/// out of range for the valid program memory addresses. In 
+/// this design, the program memory is 1024 bytes, so that
+/// occurs if pc > 1020. If the exception is raised, the instr
+/// output has an unspecified value.
+///
+module instr_mem(
+	input [31:0] pc; // current pc
+	output [31:0] instr; // the instruction at pc
+	output instr_access_fault, // flag for instruction access fault exception
+	);
+```
+
+### Data memory read/write (sequential)
+
+The data memory is a byte-addressable which holds both main memory and memory-mapped I/O regions. It is sequential because write data is stored into the memory on the rising edge of the clock (read data is combinational). There is one write port and one read port. The only instructions which interact with the data memory are load and store instructions.
+
+The signature of the `data_mem` module is as follows:
+
+```verilog
+/// Data memory module with one write and one read port
+///
+/// To read, set the read_addr and read data from the
+/// read_data output (valid if no load exception occurred).
+///
+/// To write, set the write_addr and write_data, and set
+/// the write_en. Data will be written on the rising clock
+/// edge.
+///
+/// For both reads and writes, the width is specified using
+/// the write_width or read_width input, which has the following
+/// encoding (binary):
+///
+///  00: read/write a byte (8 bits)
+///  01: read/write a half word (16 bits)
+///  10: read/write a word (32 bits)
+///
+/// On a non-word read, the high bits of the output contain
+/// zeros. On a non-word write, the high bits of the input are
+/// ignored.
+///
+/// Both reads and writes of main memory and I/O memory
+/// can use any alignment and width, so {load,store} address
+/// misaligned exceptions do not occur in this design.
+///
+/// Access fault exceptions occur based on the read or write
+/// address. On a load access fault, the read_data is unspecified.
+/// On a store access fault, no data is written, even if write_en
+/// is set. The flags for access faults are both combinational;
+/// they are set immediately based on the address (a store access
+/// fault does not wait until the rising clock edge).
+///
+/// The memory map for this data memory is as follows (hexadecimal
+/// ranges a - b mean the region starts at a, and the first byte outside
+/// the region is b):
+///
+/// I/O region: 
+///    1000_0000 - 1000_0004 (msip)
+///    1000_4000 - 1000_4008 (mtimecmp)
+///    1000_bff8 - 1000_c000 (mtime)
+///
+/// Main memory:
+///    2000_0000 - 2000_0400
+///
+/// Only read/writes to the regions above are allowed. Any read or
+/// write that falls partially or completely outside the ranges
+/// will generate an access fault.
+module data_mem(
+	input clk, // clock (write on rising edge)
+	input [31:0] write_addr, // write port address
+	input [1:0] write_width, // write width
+	input [31:0] write_data, // write port data
+	input write_en, // 1 to write on rising clock edge, else 0 for no write
+	input [31:0] read_addr, // read port address
+	input [1:0] read_width, // read width
+	output [31:0] read_data, // read port data output
+	output load_access_fault, // set on LoadAccessFault exception
+	output store_access_fault, // set on StoreAccessFault exception
+	);
+```
+
+

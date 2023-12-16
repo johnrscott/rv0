@@ -27,7 +27,7 @@ The memory map for the physical address space is as follows (all addresses are i
 |                 | 0000\_0014    | Software interrupt vector | 4    |                               |
 |                 | 0000\_0024    | Timer interrupt vector    | 4    |                               |
 |                 | 0000\_0034    | External interrupt vector | 4    |                               |
-| I/O             | 1000\_0000    |                           | 256  | Read/write (load/store)       |
+| I/O             | 1000\_0000    |                           |      | Read/write (load/store)       |
 |                 | 1000\_0000    | msip                      | 4    |                               |
 |                 | 1000\_4000    | mtimecmp                  | 8    |                               |
 |                 | 1000\_bff8    | mtime                     | 8    |                               |
