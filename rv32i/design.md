@@ -143,13 +143,61 @@ Note that many of these steps also happen for an `interrupt` (they are generic t
 
 ### Calculation of next `pc`
 
-The next program counter value is the output from an ALU, configured as an adder, whose inputs `A` and `B` are controlled by multiplexers. The configuration of the calculation is as follows:
+The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
 * `A = pc`, `B = 4`: most instructions
 * `A = pc`, `B = offset`: control flow instructions; `offset` is
   * obtained from sign extending `imm` fields in instruction (branch instructions)
-  * masked output from `main_alu` for `jalr`
   * output from `main_alu` for `jal`
-* `A = mepc`, `B = 0`: `mret` instruction only
-* `A = BASE` (from `mtvec`), `B = 0`: when an exception is raised
+* `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
+* `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
+* `next_pc = mepc`: `mret` instruction only
 
 The output from this adder is checked for instruction alignment (multiple of 4). If the `pc` is not four-byte aligned, an `InstructionAddressMisaligned` exception is raised.
+
+The module that will calculate the `pc` is called `next_pc`, and has the following signature:
+
+```verilog
+/// Combinational module to calculate the next value of
+/// the program counter. The control signal pc_src sets
+/// the calculation of maybe_next_pc as follows
+///
+/// pc_src  maybe_next_pc
+///  00      pc + 4
+///  01      mepc
+///  10      32'hffff_fffe & jalr_target
+///  11      pc + offset
+///
+/// The control line trap decides whether maybe_next_pc
+/// becomes the next_pc or not:
+///
+///                       trap
+///                        |
+/// maybe_next_pc -------- 
+///                       MUX ----- next_pc
+/// trap_pc --------------
+///
+/// where trap_pc = exception_vector + interrupt_offset
+/// 
+/// If the maybe_next_pc is not a multiple of 4 when adding
+/// offset or using jalr_target (i.e. pc_src 01 or
+/// 10), then InstructionAddressMisaligned exception
+/// is raised (indicated by instr_addr_mis set). This should
+/// cause an external control system to set trap. It is
+/// important that the instr_addr_mis signal continues to
+/// be asserted even after trap is set, which is why
+/// maybe_next_pc is separate from next_pc (this allows 
+/// a fully combinational single-cycle design).
+///
+module next_pc(
+	input [31:0] pc, // the current value of the PC
+	input [31:0] mepc, // the pc to use for mret
+	input [31:0] exception_vector, // from mtvec
+	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
+	input [31:0] offset, // offset to add to the current pc
+	input [31:0] jalr_target, // un-masked jalr target PC
+	input [2:0] pc_src, // select the next pc for normal program flow
+	input trap, // 0 for normal program flow, 1 for trap
+	output [31:0] next_pc, // the next value to load into pc
+	output instr_addr_mis, // flag for instruction address misaligned exception
+	);
+```
