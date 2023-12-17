@@ -48,7 +48,7 @@ Note: does this instruction require two ALUs? One for the branch condition compa
 ### Load instructions
 
 The following instructions read a value from memory and write it to a destination registers: `lb`, `lh`, `lw`, `lbu`, `lhu`. Supporting these instructions requires:
-* routing the `base` register index from the I-type instruction to the register file
+* routing the `base` (`rs1`) register index from the I-type instruction to the register file
 * routing the output of the register file to the first input of the ALU
 * routing the `offset` stored in the instruction to the other input of the ALU
 * setting the ALU operation to addition
@@ -62,7 +62,7 @@ The following instructions read a value from memory and write it to a destinatio
 ### Store instructions
 
 The following instructions write a value from a register to a memory address: `sb`, `sh`, `sw`. Supporting these instructions requires:
-* routing the `base` register index from the S-type instruction to the first read port of the register file
+* routing the `base` (`rs1`) register index from the S-type instruction to the first read port of the register file
 * routing the first output of the register file to the first input of the ALU
 * obtaining the `offset` from the `imm` fields of the S-type instruction and placing the result on the second ALU 
 * setting the ALU operation to addition
@@ -77,9 +77,9 @@ The following instructions write a value from a register to a memory address: `s
 
 These instruction construct upper immediates: `lui` and `auipc`; they are implemented by:
 * routing the `dest` field of the U-type instruction to the write port address of the register file.
-* combine the `imm` field of the U-type instruction with 12 low zeros; route it to port 1 of the ALU
+* combine the `imm` field of the U-type instruction with 12 low zeros; route it to port 2 of the ALU
 * set the ALU operation to addition
-* if the instruction is `auipc`, route the current `pc` to the second port of the ALU; else 0 for `lui`.
+* if the instruction is `auipc`, route the current `pc` to port 1 of the ALU; else 0 for `lui`.
 * route the output of the ALU to the write data port of the register file
 * set next `pc` to `pc + 4`
 
@@ -87,8 +87,8 @@ These instruction construct upper immediates: `lui` and `auipc`; they are implem
 
 The `jal` instruction is implemented by:
 * routing the `imm` fields of the J-type instruction through a sign-extending module
-* routing the sign extended result to the first port of the ALU
-* routing the current `pc` to the second port of the ALU
+* routing the sign extended result to the second port of the ALU
+* routing the current `pc` to the first port of the ALU
 * setting the ALU operation to addition
 * checking the result from the ALU is four-byte aligned. If not, raise `InstructionAddressMisaligned` exception and do not perform the register writes below.
 * setting the next `pc` to the output from the ALU.
@@ -99,9 +99,9 @@ The `jal` instruction is implemented by:
 
 The `jalr` instruction is implemented by:
 * routing the `imm` fields of the I-type instruction to a sign extension module
-* routing the result of the sign extension to the first port of the ALU
+* routing the result of the sign extension to the second port of the ALU
 * routing the `base` field of the I-type instruction to the first read port of the register file
-* routing the first output port of the register file to the second port of the ALU
+* routing the first output port of the register file to the first port of the ALU
 * setting the ALU operation to addition
 * routing the output of the ALU through a mask to set the low bit to zero
 * checking the result is four-byte aligned. If not, raise `InstructionAddressMisaligned` exception and do not perform the register writes below.
@@ -504,3 +504,75 @@ module register_file(
     );
 ```
 
+## Data path (multiplexers)
+
+This section contains the designs for signal selection multiplexers at the inputs to most of the data path modules. They are named using the format `<module_name>_<input_name>_sel` where `<module_name>` and `<input_name>` specifies which signal of which module is being driven. The control signals for each multiplexer come from the control unit. Sometimes, the module may contain logic in addition to a multiplexer for generating the input signal.
+
+Some signals do not require multiplexers, because they are always taken from the same source. The signals corresponding to register indices are as follows:
+* `register_file_rs1` is always tied to the `rs1` field of the instructions (`instr[19:15]`)
+* `register_file_rs2` is always tied to the `rs2` field of the instructions (`instr[24:20]`)
+* `register_file_rd` is always tied to the `rd` field of the instructions (`instr[11:7]`)
+
+It does not matter if these fields are not used in the instruction, and therefore contains junk; in these cases, `register_file_write_en` is de-asserted, and the combinational outputs `rs1_data` and `rs2_data` are ignored.
+
+The multiplexers that select between different potential inputs are outlined below.
+
+### Main ALU input ports
+
+There are two multiplexers which control the input ports to the main ALU: `main_alu_a_sel` and `main_alu_b_sel`. The following guidelines have been followed when selecting which signals is routed to which port of the main ALU:
+* `rs1_data` and `rs2_data` are routed to ports `a` and `b` of the ALU
+* immediate fields are typically routed to port `b` of the ALU
+* the `pc` is routed to the first port of the ALU if it is needed
+* the CSR-bus data output is routed to port `b` of the main ALU; for CSR instructions, port `a` is used for `rs1_data`, `!rs1_data`, and the `uimm`-derived immediates.
+* the CSR-bus address is always routed from the `csr` field in the CSR instruction format (`instr[31:20]`)
+
+The signatures for the two ALU input multiplexers are as follows. The first port is controlled by:
+
+```verilog
+/// Selects the signal input for port a of the main ALU
+///
+/// The sel argument selects between the inputs (sel is in binary):
+///  000: rs1_data, for register-register, register-immediate,
+///  branch, load, store instructions
+///  001: pc, for auipc and jal instructions
+///  010: 0, for lui
+///  011: !rs1_data, for use in CSR instructions
+///  100: uimm, for use in CSR instructions
+///  101: !uimm, for use in CSR instructions
+///
+/// When uimm is negated, the negation happens _before_ the 
+/// sign-extension to 32-bits.
+///
+module main_alu_a_sel(
+	input [2:0] sel, // chooses the output signal
+	input [31:0] rs1_data, // the value of rs1 from the register file
+	input [31:0] pc, // for current program counter
+	input [4:0] uimm, // uimm field from CSR instructions
+	output a. // the main ALU a signal
+	);
+```
+
+The second port is controlled by:
+
+```verilog
+/// Selects the signal input for port b of the main ALU
+///
+/// The sel argument selects between the inputs (sel is in binary):
+///  00: rs2_data, for register-register, branch instructions
+///  01: imm, for register-immediate, load, store, jal, jalr, 
+///  10: csr_read_data, for CSR instructions 
+///
+/// The imm argument above needs generating according to whichever
+/// instruction is being implemented; different instructions have
+/// different formats for the immediate, and need it to be processsed
+/// in different ways. The imm argument will be passed straight
+/// through to b unprocessed.
+module main_alu_b_sel(
+	input [1:0] sel, // chooses the output signal
+	input [31:0] rs2_data, // the value of rs2 from the register file
+	input [31:0] imm, // immediate field, already extracted/sign-extended
+	output b. // the main ALU b signal
+	);
+```
+
+### Data memory bus read port
