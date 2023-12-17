@@ -2,7 +2,7 @@
 
 This file contains the design of the core, including the data path and control. Each part will be broken down into what modules and instances are needed, and how the instructions utilise each part of the design.
 
-## Data path (Instruction Perspective)
+## Data path (instructions)
 
 This section describes how the instruction uses the hardware of the data path.
 
@@ -149,7 +149,7 @@ The `mret` instruction is implemented by:
 * setting the `MPIE` bit to 1 in the `mstatus` CSR
 * setting the next `pc` to `mepc`
 
-## Data path (Instance Perspective)
+## Data path (modules)
 
 This presents a draft of the different components of the data path, focusing on what they will do while different instructions are executing. 
 
@@ -406,9 +406,13 @@ module csr_module(
 	);
 ```
 
-All CSR instructions can read and write to a CSR in the same instruction, but sometimes either the read or the write does not occur. In those cases, the RISC-V specification states that side effects associated with the read/write do not occur. In this design, no CSR has a read-side-effect associated with it (other than illegal instruction for an invalid CSR, which is not relevant). As a result, reads are always performed in this design, even though the values can be ignored.
-
-Each CSR module can claim 
+Modules will be designed so that a given register is controlled by only a single module. These are the kinds of modules that will be present:
+* read-only zero CSR modules: these only need a single CSR-bus port which always returns zero on reads or illegal instruction on writes. Examples include `mvendorid`, `marchid`, `mimpid`, `mhartid`, `mconfigptr`, `misa`, `mhpmcountern`, `mhpmcounternh`, `mhpmevent`, `hpmcountern`, `hpmcounternh`, `mtval` (these can all be collected into a single module)
+* read/write CSRs which are not used by hardware: these require a read/write CSR-bus interface only. Examples are `mscratch`.
+* read/write CSRs which can only be read by hardware: these need a read/write CSR-bus port, and access for hardware to read the bits. Examples include `mie`.
+* read-only non-zero CSR modules: these return a non-zero value, but cause illegal instruction on writes. Examples include `mtvec`, 
+* read/write CSRs which can also be written by hardware: these need a CSR-bus port for read/write, and also a direct-hardware port for the CPU to read/update the bits in the CSRs. Examples include `mstatus` and `mstatush` (note that this is a read/write register, even though all fields are read-only zero), `mcycle`, `mcycleh`, `minstret`, `minstreth`, `mcause`, `mepc`. These modules should also provide access to read-only shadows of these registers (like `cycle`, `cycleh`, `instret`, `instreth`).
+* read-only memory-mapped CSRs updated by hardware: these require a CSR-bus supporting reads (writes return illegal instruction), and also a data memory bus for access via the physical address space. In addition, hardware requires a read/write port for reading and updating the values. Examples include `time` and `timeh` (i.e. 64-bit `mtime`)
 
 ### Main ALU (combinational)
 

@@ -62,7 +62,7 @@ The state of the CPU is stored in the following status registers:
   * bit 3: MIE (interrupt enable), read/write
   * bit 7: MPIE (previous value of interrupt enable), read/write (?)
   * bits [12:11]: MPP (previous privilege mode), WARL always 0b11 (?)
-* `0x310 mstatush`: upper 32-bit of status; all fields are read-only zero (only little-endian memory is supported).
+* `0x310 mstatush`: read/write, upper 32-bit of status; all fields are read-only zero (only little-endian memory is supported).
   
 In addition to the global bit in the status register, interrupts are controlled and monitored by these registers:
 
@@ -112,8 +112,8 @@ Finally, the following required performance monitoring counters are all implemen
 * `(0xb00 + n) mhpmcountern`: read-only zero (`n` ranges from 3 to 32)
 * `(0xb80 + n) mhpmcounternh`: read-only zero (`n` ranges from 3 to 32)
 * `(0x320 + n) mhpmevent`: read-only zero (`n` ranges from 3 to 32)
-* `(0xc00 + n) hpmcounter`:  read-only zero (`n` ranges from 3 to 32)
-* `(0xc80 + n) hpmcounterh`: read-only zero (`n` ranges from 3 to 32)
+* `(0xc00 + n) hpmcountern`:  read-only zero (`n` ranges from 3 to 32)
+* `(0xc80 + n) hpmcounternh`: read-only zero (`n` ranges from 3 to 32)
 
 ## Instructions
 
