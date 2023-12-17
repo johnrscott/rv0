@@ -1,6 +1,12 @@
 # Specification
 
-This part summarises the specification for the design, including the ISA that needs supporting, the CSR registers, and the interrupts/exceptions.
+This part summarises the specification for the design, including the ISA that needs supporting, the CSR registers, and the interrupts/exceptions. Throughout the specification, the RISC-V specification is referenced in the following format:
+
+* `v1_c9` means RISC-V volume 1 (unprivileged ISA), chapter 9
+* `v1_t9.1` means RISC-V volume 1 (unprivileged ISA), table 9.1
+* `v2_s2.3` means RISC-V volume 2 (privileged architecture), section 2.3
+
+All references to volume 1 refer to version 20191213 (document `riscv-spec-20191213.pdf`), and references to volume 2 refer to version 20211203 (document `riscv-privileged-20211203.pdf`). Both documents are available from the [official specification page](https://riscv.org/technical/specifications/).
 
 ## CPU State
 
@@ -113,7 +119,32 @@ Finally, the following required performance monitoring counters are all implemen
 
 The required instructions are the 32-bit base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instruction `mret`.
 
+### Control and status register (CSR) instructions
 
+The unprivileged specification (`v1_ch9`) defines the behaviour of the instructions which manipulate CSRs, in the Zicsr ISA extension. The behaviour of the instructions is as follows:
+
+* `csrrw`: read the addressed CSR into destination register `rd`, and then write the source register `rs1` to the addressed CSR.
+* `csrrwi`: read the addressed CSR into destination register `rd`, and then zero extend the immediate `uimm` and write it to the addressed CSR.
+* `csrrs`: read the addressed CSR into destination register `rd`. Then, only if the source register `rs1` is not `x0`, bitwise-OR the current value of the CSR with `rs1`, and write the result back to the CSR (i.e. set bits in the CSR where there is a 1 in `rs1`).
+* `csrrsi`: read the addressed CSR into destination register `rd`. Then, only if the immediate `uimm` is not `0`, bitwise-OR the current value of the CSR with `uimm` (zero-extended to 32 bits), and write the result back to the CSR (i.e. set bits in the CSR where there is a 1 in `uimm`).
+* `csrrc`: read the addressed CSR into destination register `rd`. Then, only if the source register `rs1` is not `x0`, bitwise-AND the current value of the CSR with !`rs1`, and write the result back to the CSR (i.e. clear bits in the CSR where there is a 1 in `rs1`).
+* `csrrci`: read the addressed CSR into destination register `rd`. Then, only if the immediate `uimm` is not `0`, bitwise-AND the current value of the CSR with `!uimm` (zero-extended to 32 bits _after_ negation), and write the result back to the CSR (i.e. clear bits in the CSR where there is a 1 in `uimm`).
+
+Any instructions that write to a CSR:
+* will raise an illegal instruction exception if the CSR is read-only. In this case, the state of registers will be as if the instruction did not occur.
+* will not change the value of an CSR bits that are read-only in otherwise writable registers
+* for WLRL fields in writable CSRs, any value that is written (even an invalid one) will be written anyway, without any checking in hardware.
+* for WARL fields in writable CSRs, any attempt to write an invalid value will cause no change in the CSR field (the old value will be retained).
+* the write will displace any other automatic modification of the CSR by hardware; for example, writing to `instret` will stop auto-increment of `instret` on that instruction (`v1_s9.1`). This is also interpreted as applying to all counters, including `mcycle`, etc.)
+
+Instructions that read CSRs read the value of the CSR as it was just prior to instruction execution (e.g. the value of `instret` is taken before incrementing in due to the read instruction itself).
+
+#### Notes on behaviour
+
+* The instructions are defined (`v1_s9.1`) to atomically read and write CSRs. Since there is only one hart in this design, this required is satisfied by a single read/write operation.
+* The `csrrw` and `csrrwi` instructions are defined (`v1_t9.1`) to omit the CSR read if the destination register `rd` is `x0`, and not trigger any side effects that would occur on a read. In this design, no CSR has a side effect that occurs on a read, so for simplicity the `*rw*` instructions can perform a read irrespective of `rd`, and attempt the write to `rd` (which will have no effect if `rd` is `x0`).
+* In this design, all CSRs are 32-bits wide, so there is no need to zero-extend them before writing to registers.
+* In this design, writing invalid values to WLRL fields does not raise an illegal instruction exception (`v2_s2.3`). 
 
 ## Exceptions
 

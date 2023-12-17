@@ -109,6 +109,10 @@ The `jalr` instruction is implemented by:
 * route the `dest` field of the J-type instruction to the write address port of the register file
 * setting the write data port of the register file to `pc + 4`
 
+### Control and status register instructions
+
+The instructions `csrrw`, `csrrs`, `csrrc`, `csrrwi`, `csrrsi`, and `csrrci` read and write CSRs. The `*rw*` instructions always write irrespective of arguments, and the `*rs*/*rc*` instructions always read irrespective of arguments.
+
 ### Nops
 
 The instructions `fence` and `wfi` are implemented as `nop`:
@@ -311,7 +315,82 @@ module data_mem(
 	);
 ```
 
-### Main ALU
+#### Notes
+
+Maybe this is more like a physical memory attributes checker module, not the actual data memory. Ideally, the I/O region (with the memory-mapped CSRs and in the future, other peripherals) should be independent of the data memory. Probably a bus architecture of some kind is more appropriate, where the bus itself is the physical address space, but devices attached to the bus can opt to service the request if the address is within their memory range. There could be a data bus that contains the output, driven by whichever module is servicing the request. The physical memory attributes checker could also be attached to this bus.
+
+Possible there is no need for a PMA checker at all -- if each peripheral connected to the bus "claims" the read or write by asserting a signal, then the PMA check could be as simple as checking that at least one device as claimed the read/write (a peripheral would only claim it if the entirety of the read/write falls within it's valid address range).
+
+Any device on the data memory physical address bus could have the following signature:
+
+```verilog
+/// Example device connected to data memory bus
+///
+/// For this bus, only a single read or write is allowed at once. This
+/// is fine, because only a load or store instruction is being executed
+/// at once, and these are the only ways the CPU can access the data memory
+/// (note that "back-channel" accesses, like updating memory mapped registers
+/// like mtime internall, do not use the data memory bus for the access).
+///
+/// A device like this "claims" a read/write by asserting the "claim" signal,
+/// depending on whether it "owns" the address range (determined from the
+/// addr and width). By design, only a single device on the bus can claim
+/// a read/write. Externally, all the claim signals are ORed together, and if
+/// no device claims the read/write, an access fault occurs. (The write_en
+/// signal is also shared between all devices, and this can be used in 
+/// combination with the ORed claim signals to distinguish a load/store
+/// access fault.)
+///
+/// If a write is claimed, the write is performed on the rising edge of the
+/// clock. If a read is claimed, then the data_out line is set to the
+/// result of the read. If the read is not claimed, the data_out line is
+/// guaranteed to be zero. This means these lines can be ORed externally
+/// to form the data_out bus.
+module example_device(
+	input clk, // if the device can be written to, it needs a clock
+	input [31:0] addr, // the read/write address bus 
+	input [1:0] width, /// the width of the read/write
+	input [31:0] data_in, // data to be written on rising clock edge
+	input write_en, // 1 to perform write, 0 otherwise
+	output [31:0] data_out, // data out
+	// other signals specific to the device
+	);
+```
+
+Devices that are needed on the bus include:
+
+* `main_memory`: fixed block of contiguous memory; claims reads/writes contained in the range `0x2000_0000 - 0x2000_0400`.
+* `msip`: memory-mapped register, claims reads/writes in the range `0x1000_0000 - 0x1000_0004 `. Only the lowest bit is writable. Attempts to write other bits are ignored, and other bits always read as zero.
+* `mtimecmp`: memory-mapped register, claims reads/writes in the range `0x1000_4000 - 0x1000_4008`.
+* `mtime`: memory-mapped register, claims reads/writes in the range `0x1000_bff8 - 0x1000_c000`. Automatically increment on each clock cycle.
+
+### Interrupt module (combinational)
+
+This module is responsible for 
+
+### Control and Status Register Bus
+
+The CSR registers are attached to an address space which is different from the data memory physical address space, but which can be implemented in the same way. Each CSR is represented as a device attached to the bus (similar CSRs can be grouped into a single module), with the following signature:
+
+```verilog
+module csr_module(
+	input clk, // clock for writing on the rising edge
+	input [11:0] addr, // CSR address. Used to claim a CSR read/write.
+	input [31:0] write_data, // data to write to the CSR
+	input write_en, // 1 to write on rising clock edge
+	output read_data, //
+	output claim, // 1 if this module owns the CSR addr
+	output illegal_instr, // 1 if illegal instruction should be raised
+	
+
+	);
+```
+
+All CSR instructions can read and write to a CSR in the same instruction, but sometimes either the read or the write does not occur. In those cases, the RISC-V specification states that side effects associated with the read/write do not occur. In this design, no CSR has a read-side-effect associated with it (other than illegal instruction for an invalid CSR, which is not relevant). As a result, reads are always performed in this design, even though the values can be ignored.
+
+Each CSR module can claim 
+
+### Main ALU (combinational)
 
 The main ALU is responsible for register-register calculation, register-immediate calculations, and address calculations. It does not raise any exceptions. The ALU should be able to perform the following operations on its operands `a` and `b`, to produce result `r`:
 
@@ -335,7 +414,7 @@ The signature for the `alu` module used for the `main_alu` component is shown be
 ///
 /// This is a purely combinational ALU implementation.
 ///
-/// The operation depends on the 4-bit aluc as
+/// The operation depends on the 4-bit alu_op as
 /// follows: 
 ///
 /// 0_000: r = a + b
@@ -349,7 +428,7 @@ The signature for the `alu` module used for the `main_alu` component is shown be
 /// x_110: r = a | b
 /// x_111: r = a & b
 ///
-/// The separation in aluc indicates that the top bit
+/// The separation in alu_op indicates that the top bit
 /// comes form bit 30 of the instruction, and the bottom
 /// 3 bits come from funct3, in R-type register-register
 /// instructions.
@@ -364,9 +443,40 @@ The signature for the `alu` module used for the `main_alu` component is shown be
 module alu(
     input [31:0] a, // First 32-bit operand
     input [31:0] b, // Second 32-bit operand
-    input [3:0] aluc, // ALU control signals (see comments above)
-    output reg [31:0] r, // 32-bit result
+    input [3:0] alu_op, // ALU control signals (see comments above)
+    output [31:0] r, // 32-bit result
     output zero // 1 if r is zero, 0 otherwise
     );
 ```
+
+An instance of the `alu` module will also be used for the `next_pc` calculation.
+
+### Register file (sequential)
+
+The register file has two combinational read ports and one sequential write port. The register file does not raise exceptions. The signature of the register file is shown below:
+
+```verilog
+/// 32-bit Register file
+///
+/// There are 32 32-bit registers x0-x31, with x0 hardwired
+/// to zero. This module provides two combinational output
+/// ports, controlled by the two addresses rs1 and src, and
+/// a single registered write (on the rising edge of the clock
+/// when the write enable signal is asserted).
+///
+/// There is no reset; on power-on, the register values are 
+/// set to zero.
+///
+module register_file(
+    input clk, // clock
+    input write_en, // write enable
+	input [31:0] write_data, // data for write
+    input [4:0] rs1, // source register index A
+    input [4:0] rs2, // source register index B
+    input [4:0] rd, // destination register index for write
+    output [31:0] rs1_data, // read port A
+    output [31:0] rs2_data // read port B
+    );
+```
+
 
