@@ -111,7 +111,27 @@ The `jalr` instruction is implemented by:
 
 ### Control and status register instructions
 
-The instructions `csrrw`, `csrrs`, `csrrc`, `csrrwi`, `csrrsi`, and `csrrci` read and write CSRs. The `*rw*` instructions always write irrespective of arguments, and the `*rs*/*rc*` instructions always read irrespective of arguments.
+The instructions `csrrw`, `csrrs`, `csrrc`, `csrrwi`, `csrrsi`, and `csrrci` read and write CSRs. The `*rw*` instructions always write irrespective of arguments, and the `*rs*/*rc*` instructions always read irrespective of arguments. These instructions are implemented by:
+* routing the CSR address to the CSR address bus (which specifies a CSR to both read and write)
+* if the CSR does not exist, raise an illegal instruction exception and do not perform the operations below.
+* routing the destination register index `rd` of the instruction to the write data address port of the register file.
+* routing the data output of the CSR to the write data input port of the register file.
+* routing the data output of the CSR to the first port of the ALU
+* configure the ALU operation to be OR (`csrrs(i)`) or AND (`csrrc(i)`) depending on the instruction
+* route the `rs1` field to the first read port of the register file (this can be done even for immediate instructions; the output of the register file is unused)
+* select the second port of the ALU from: 
+  * the output of the first read port on the register file (`csrrs`)
+  * the negated output of the first read port on the register file (`csrrc`)
+  * the `uimm` instruction field (zero-extended) (`csrrsi`)
+  * the `!uimm` field (zero-extended) (`csrrci`)
+* select the CSR write data line from
+  * the first read output from the register file (`csrrw`)
+  * the `uimm` field from the instruction (`csrrwi`)
+  * the output of the ALU (the rest of the instructions)
+* set the CSR bus write enable signal depending on the instruction and whether `rs1` is zero, or `uimm` is zero.
+* if the attempted write to the CSR is read-only, raise an illegal instruction exception, and prevent the CSR data being written to `rd`.
+
+In the CSR bus, if a write is performed, ensure this prevents any automatic updating action the CSR may take when it is not written. Each CSR module on the CSR bus is responsible for only updating its writable fields (and masking out attempted changes to non-writable fields, or WARL fields where the written value is not legal).
 
 ### Nops
 

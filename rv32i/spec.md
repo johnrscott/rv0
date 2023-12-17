@@ -139,6 +139,8 @@ Any instructions that write to a CSR:
 
 Instructions that read CSRs read the value of the CSR as it was just prior to instruction execution (e.g. the value of `instret` is taken before incrementing in due to the read instruction itself).
 
+Instructions that attempt to perform an operation on a non-existent CSR raise an illegal instruction exception.
+
 #### Notes on behaviour
 
 * The instructions are defined (`v1_s9.1`) to atomically read and write CSRs. Since there is only one hart in this design, this required is satisfied by a single read/write operation.
