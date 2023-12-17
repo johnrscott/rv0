@@ -402,7 +402,8 @@ module csr_module(
 	output claim, // 1 if this module owns the CSR addr
 	output illegal_instr, // 1 if illegal instruction should be raised
 	
-
+	// Other arguments not related to CSR bus (e.g. memory mapping,
+	// hardware access, etc.)
 	);
 ```
 
@@ -502,5 +503,4 @@ module register_file(
     output [31:0] rs2_data // read port B
     );
 ```
-
 
