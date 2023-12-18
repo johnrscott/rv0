@@ -221,6 +221,7 @@ module next_pc(
 	input [31:0] jalr_target, // un-masked jalr target PC
 	input [2:0] pc_src, // select the next pc for normal program flow
 	input trap, // 0 for normal program flow, 1 for trap
+	output [31:0] pc_plus_4, // this signal is written to rd for jal/jalr
 	output [31:0] next_pc, // the next value to load into pc
 	output instr_addr_mis, // flag for instruction address misaligned exception
 	);
@@ -373,6 +374,7 @@ module example_device(
 	input [31:0] data_in, // data to be written on rising clock edge
 	input write_en, // 1 to perform write, 0 otherwise
 	output [31:0] data_out, // data out
+	
 	// other signals specific to the device
 	);
 ```
@@ -515,6 +517,11 @@ Some signals do not require multiplexers, because they are always taken from the
 
 It does not matter if these fields are not used in the instruction, and therefore contains junk; in these cases, `register_file_write_en` is de-asserted, and the combinational outputs `rs1_data` and `rs2_data` are ignored.
 
+Only the load and store instructions can read or write to the data memory bus, which means the following signals are always routed:
+* data memory bus `addr` always comes from the main ALU result `r`
+* data memory bus `width` field is calculated statically from the instruction
+* data memory bus `write_data` is routed from `rs2_data` from the register file
+
 The multiplexers that select between different potential inputs are outlined below.
 
 ### Main ALU input ports
@@ -548,7 +555,7 @@ module main_alu_a_sel(
 	input [31:0] rs1_data, // the value of rs1 from the register file
 	input [31:0] pc, // for current program counter
 	input [4:0] uimm, // uimm field from CSR instructions
-	output a. // the main ALU a signal
+	output a // the main ALU a signal
 	);
 ```
 
@@ -571,8 +578,30 @@ module main_alu_b_sel(
 	input [1:0] sel, // chooses the output signal
 	input [31:0] rs2_data, // the value of rs2 from the register file
 	input [31:0] imm, // immediate field, already extracted/sign-extended
-	output b. // the main ALU b signal
+	output b // the main ALU b signal
 	);
 ```
 
-### Data memory bus read port
+### Register file write data
+
+The `write_data` signal for writing to `rd` is selected from multiple sources depending on the instruction. The module is given below
+
+```verilog
+/// Write data for rd in register file
+///
+/// The sel arguments selects between the inputs (sel is in binary):
+///  00: main_alu_r, for register-register, register-immediate, 
+///  and lui/auipc instructions
+///  01: for load instructions
+///  10: csr_bus_out, for all CSR instructions
+///  11: pc + 4, for jal/jalr instructions
+///
+module register_file_write_data_sel(
+	input [1:0] sel, // choose the output signal
+	input [31:0] main_alu_r, // the output from the main ALU
+	input [31:0] data_mem_out, // data output from data memory bus
+	input [31:0] csr_bus_out, // data output from CSR bus
+	input [31:0] pc_plus_4, // current pc + 4
+	output write_data //
+	);
+```
