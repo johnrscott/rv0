@@ -165,68 +165,6 @@ Due to the results of calculations performed in the combinational work of an ins
 
 Note that many of these steps also happen for an `interrupt` (they are generic trap steps). However, an interrupt sets a different `mepc` value and `mcause`, and jumps to a vectored interrupt).
 
-### Calculation of next `pc` (combinational)
-
-The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
-* `A = pc`, `B = 4`: most instructions
-* `A = pc`, `B = offset`: control flow instructions; `offset` is
-  * obtained from sign extending `imm` fields in instruction (branch instructions)
-  * output from `main_alu` for `jal`
-* `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
-* `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
-* `next_pc = mepc`: `mret` instruction only
-
-The output from this adder is checked for instruction alignment (multiple of 4). If the `pc` is not four-byte aligned, an `InstructionAddressMisaligned` exception is raised.
-
-The module that will calculate the `pc` is called `next_pc`, and has the following signature:
-
-```verilog
-/// Combinational module to calculate the next value of
-/// the program counter. The control signal pc_src sets
-/// the calculation of maybe_next_pc as follows:
-///
-/// pc_src  maybe_next_pc
-///  00      pc + 4
-///  01      mepc
-///  10      32'hffff_fffe & jalr_target
-///  11      pc + offset
-///
-/// The control line trap decides whether maybe_next_pc
-/// becomes the next_pc or not:
-///
-///                       trap
-///                        |
-/// maybe_next_pc -------- 
-///                       MUX ----- next_pc
-/// trap_pc --------------
-///
-/// where trap_pc = exception_vector + interrupt_offset
-/// 
-/// If the maybe_next_pc is not a multiple of 4 when adding
-/// offset or using jalr_target (i.e. pc_src 01 or
-/// 10), then InstructionAddressMisaligned exception
-/// is raised (indicated by instr_addr_mis set). This should
-/// cause an external control system to set trap. It is
-/// important that the instr_addr_mis signal continues to
-/// be asserted even after trap is set, which is why
-/// maybe_next_pc is separate from next_pc (this allows 
-/// a fully combinational single-cycle design).
-///
-module next_pc(
-	input [31:0] pc, // the current value of the PC
-	input [31:0] mepc, // the pc to use for mret
-	input [31:0] exception_vector, // from mtvec
-	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
-	input [31:0] offset, // offset to add to the current pc
-	input [31:0] jalr_target, // un-masked jalr target PC
-	input [2:0] pc_src, // select the next pc for normal program flow
-	input trap, // 0 for normal program flow, 1 for trap
-	output [31:0] pc_plus_4, // this signal is written to rd for jal/jalr
-	output [31:0] next_pc, // the next value to load into pc
-	output instr_addr_mis, // flag for instruction address misaligned exception
-	);
-```
-
 ### `pc` (sequential)
 
 The current `pc` is a single 32-bit register, which is loaded on the rising edge of the clock from the output of `next_pc`.
@@ -386,10 +324,6 @@ Devices that are needed on the bus include:
 * `mtimecmp`: memory-mapped register, claims reads/writes in the range `0x1000_4000 - 0x1000_4008`.
 * `mtime`: memory-mapped register, claims reads/writes in the range `0x1000_bff8 - 0x1000_c000`. Automatically increment on each clock cycle.
 
-### Interrupt module (combinational)
-
-This module is responsible for 
-
 ### Control and Status Register Bus
 
 The CSR registers are attached to an address space which is different from the data memory physical address space, but which can be implemented in the same way. Each CSR is represented as a device attached to the bus (similar CSRs can be grouped into a single module), with the following signature:
@@ -416,6 +350,26 @@ Modules will be designed so that a given register is controlled by only a single
 * read-only non-zero CSR modules: these return a non-zero value, but cause illegal instruction on writes. Examples include `mtvec`, 
 * read/write CSRs which can also be written by hardware: these need a CSR-bus port for read/write, and also a direct-hardware port for the CPU to read/update the bits in the CSRs. Examples include `mstatus` and `mstatush` (note that this is a read/write register, even though all fields are read-only zero), `mcycle`, `mcycleh`, `minstret`, `minstreth`, `mcause`, `mepc`. These modules should also provide access to read-only shadows of these registers (like `cycle`, `cycleh`, `instret`, `instreth`).
 * read-only memory-mapped CSRs updated by hardware: these require a CSR-bus supporting reads (writes return illegal instruction), and also a data memory bus for access via the physical address space. In addition, hardware requires a read/write port for reading and updating the values. Examples include `time` and `timeh` (i.e. 64-bit `mtime`)
+
+
+### Trap module (sequential)
+
+This module is responsible for controlling interrupts and exceptions. It holds the following state of the architecture:
+* `mtime`: 64-bit real-time register
+* `mtimecmp`: defines the trigger for a timer interrupt in relation to `mtime`
+* `mie`: global interrupt enable bit in `mstatus`
+* `mpie`: previous `mie` in `mstatus`
+* `msie`, `mtie`, `meie`: software, timer and external interrupt enable bits in `mie`
+* `msip`, `mtip`, `meip`: software, timer and external interrupt pending bits in `mip`
+* `mepc`: return address after trap
+* `mcause`: the cause of the trap
+* `mtvec`: defines the location and type of trap handler vectors (this is hardcoded in this design)
+
+The module serves the `mtime` and `mtimecmp` registers memory-mapped onto the data memory bus.
+
+The module serves the following CSR registers on the CSR bus:
+* 
+
 
 ### Main ALU (combinational)
 
@@ -601,7 +555,68 @@ module register_file_write_data_sel(
 	input [31:0] main_alu_r, // the output from the main ALU
 	input [31:0] data_mem_out, // data output from data memory bus
 	input [31:0] csr_bus_out, // data output from CSR bus
-	input [31:0] pc_plus_4, // current pc + 4
+	input [31:0] pc_plus_4, // current pc + 4, from next_pc_sel
 	output write_data //
+	);
+```
+
+### Next program counter
+
+The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
+* `A = pc`, `B = 4`: most instructions
+* `A = pc`, `B = offset`: control flow instructions; `offset` is
+  * obtained from sign extending `imm` fields in instruction (branch instructions)
+  * output from `main_alu` for `jal`
+* `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
+* `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
+* `next_pc = mepc`: `mret` instruction only
+
+The output from this adder is checked for instruction alignment (multiple of 4). If the `pc` is not four-byte aligned, an `InstructionAddressMisaligned` exception is raised.
+
+The module that will calculate the `pc` is called `next_pc`, and has the following signature:
+
+```verilog
+/// Combinational module to calculate the next value of
+/// the program counter. The control signal sel sets
+/// the calculation of maybe_next_pc as follows:
+///
+/// 00: pc + 4
+/// 01: mepc
+/// 10: 32'hffff_fffe & jalr_target
+/// 11: pc + offset
+///
+/// The control line trap decides whether maybe_next_pc
+/// becomes the next_pc or not:
+///
+///                       trap
+///                        |
+/// maybe_next_pc -------- 
+///                       MUX ----- next_pc
+/// trap_pc --------------
+///
+/// where trap_pc = exception_vector + interrupt_offset
+/// 
+/// If the maybe_next_pc is not a multiple of 4 when adding
+/// offset or using jalr_target (i.e. pc_src 01 or
+/// 10), then InstructionAddressMisaligned exception
+/// is raised (indicated by instr_addr_mis set). This should
+/// cause an external control system to set trap. It is
+/// important that the instr_addr_mis signal continues to
+/// be asserted even after trap is set, which is why
+/// maybe_next_pc is separate from next_pc (this allows 
+/// a fully combinational single-cycle design).
+///
+module next_pc_sel(
+	input [1:0] sel, // select the next pc for normal program flow
+	input [31:0] pc, // the current value of the PC
+	input [31:0] mepc, // the pc to use for mret
+	input [31:0] exception_vector, // from mtvec
+	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
+	input [31:0] offset, // offset to add to the current pc
+	input [31:0] jalr_target, // un-masked jalr target PC
+	input trap, // 0 for normal program flow, 1 for trap
+	output [31:0] pc_plus_4, // this signal is written to rd for jal/jalr
+	output [31:0] next_pc, // the next value to load into pc
+	output instr_addr_mis, // flag for instruction address misaligned exception
 	);
 ```
