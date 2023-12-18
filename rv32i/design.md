@@ -354,22 +354,62 @@ Modules will be designed so that a given register is controlled by only a single
 
 ### Trap module (sequential)
 
-This module is responsible for controlling interrupts and exceptions. It holds the following state of the architecture:
-* `mtime`: 64-bit real-time register
-* `mtimecmp`: defines the trigger for a timer interrupt in relation to `mtime`
-* `mie`: global interrupt enable bit in `mstatus`
-* `mpie`: previous `mie` in `mstatus`
-* `msie`, `mtie`, `meie`: software, timer and external interrupt enable bits in `mie`
-* `msip`, `mtip`, `meip`: software, timer and external interrupt pending bits in `mip`
-* `mepc`: return address after trap
-* `mcause`: the cause of the trap
-* `mtvec`: defines the location and type of trap handler vectors (this is hardcoded in this design)
+This module is responsible for controlling interrupts and exceptions. It also holds the registers related to interrupts and exceptions, some of which are memory-mapped and some are exposed as CSRs. The signature of the module is shown below:
 
-The module serves the `mtime` and `mtimecmp` registers memory-mapped onto the data memory bus.
 
-The module serves the following CSR registers on the CSR bus:
-* 
+```verilog
+/// Trap control (interrupts and exceptions)
+///
+/// This module holds the following status of the core:
+////
+/// mie: global interrupt enable bit in mstatus
+/// mpie: previous mie in mstatus
+/// msie, mtie, meie: software, timer and external 
+/// interrupt enable bits in mie
+/// msip, mtip, meip: software, timer and external
+/// interrupt pending bits in mip
+///
+/// It holds the following memory-mapped registers
+/// related to interrupt control:
+///
+/// mtime: 64-bit real-time register
+/// mtimecmp: defines the trigger for a timer 
+/// interrupt in relation to mtime
+/// msip: register containing the software read/writable
+/// msip bit
+///
+/// It manages/exposes the following control and status
+/// registers:
+///
+/// mepc: return address after trap
+/// mcause: the cause of the trap
+/// mtvec: defines the location and type of trap
+/// handler vectors (this is hardcoded in this design)
+///
+///
+module trap_ctrl(
+	clk, // clock for updating registers
+	
+	
+	// Data memory read/write port
+	input [31:0] addr, // the read/write address bus 
+	input [1:0] width, /// the width of the read/write
+	input [31:0] data_in, // data to be written on rising clock edge
+	input data_write_en, // 1 to perform write, 0 otherwise
+	output [31:0] data_out, // data out	
+	output data_mem_claim, // set if this module claims the data memory access
+	
+	// CSR bus read/write port
+	input [11:0] addr, // CSR address. Used to claim a CSR read/write.
+	input [31:0] csr_in, // data to write to the CSR
+	input csr_write_en, // 1 to write on rising clock edge
+	output csr_out, //
+	output csr_bus_claim, // 1 if this module owns the CSR addr
+	output illegal_instr, // 1 if illegal instruction should be raised
 
+
+	);
+```
 
 ### Main ALU (combinational)
 
