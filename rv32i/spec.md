@@ -8,6 +8,19 @@ This part summarises the specification for the design, including the ISA that ne
 
 All references to volume 1 refer to version 20191213 (document `riscv-spec-20191213.pdf`), and references to volume 2 refer to version 20211203 (document `riscv-privileged-20211203.pdf`). Both documents are available from the [official specification page](https://riscv.org/technical/specifications/).
 
+Other non-ISA specifications are also used. References to the Platform-Level Interrupt Controller (PLIC) Specification refer to version 1.0.0, 3/2023 (document `riscv-plic-1.0.0.pdf`, available [here](https://wiki.riscv.org/display/HOME/RISC-V+Technical+Specifications)). References use a format like:
+
+* `plic_f1` means RISC-V PLIC specification, figure 1
+
+## Interrupts
+
+The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specification, based on SiFive chips. The CLINT memory map begins at address `0x1000_0000`. The meaning of the memory-mapped I/O registers in this region are as follows:
+* `msip`: write 1 to this bit to request a software interrupt, and write 0 to clear it. The value of this bit is reflected in the read-only `MSIP` field of the `mip` CSR. The register is initialised to zero.
+* `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
+* `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
+
+The external interrupt bit `meie` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
+
 ## CPU State
 
 This section contains the parts of the design that hold state, which will correspond to registered parts of the design. 
@@ -40,10 +53,6 @@ The memory map for the physical address space is as follows (all addresses are i
 | Main Memory     | 2000\_0000    |                           | 1024 | Read/write (load/store)       |
 |
 
-The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specification, based on SiFive chips. The CLINT memory map begins at address `0x1000_0000`. The meaning of the memory-mapped I/O registers in this region are as follows:
-* `msip`: write 1 to this bit to request a software interrupt, and write 0 to clear it. The value of this bit is reflected in the read-only `MSIP` field of the `mip` CSR. The register is initialised to zero.
-* `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
-* `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
 
 There are the following minimal set of required control and status registers (CSR). Each is listed in the format "`CSR-address CSR-name`: description". 
 
@@ -151,3 +160,5 @@ Instructions that attempt to perform an operation on a non-existent CSR raise an
 ## Exceptions
 
 ## Interrupts
+
+This design implements the CLINT interrupt specification

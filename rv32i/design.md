@@ -381,15 +381,22 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// It manages/exposes the following control and status
 /// registers:
 ///
+/// mstatus: contains the mie, mpie and mpp bits
 /// mepc: return address after trap
 /// mcause: the cause of the trap
 /// mtvec: defines the location and type of trap
 /// handler vectors (this is hardcoded in this design)
 ///
+/// 
 ///
 module trap_ctrl(
 	clk, // clock for updating registers
 	
+	input meie, // external interrupt source (from PLIC)
+	
+	output trap, // set if any trap is detected
+	output interrupt, // set if an interrupt is detected
+	output exception, // set if an exception is raised
 	
 	// Data memory read/write port
 	input [31:0] addr, // the read/write address bus 
