@@ -361,7 +361,7 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// Trap control (interrupts and exceptions)
 ///
 /// This module holds the following status of the core:
-////
+///
 /// mie: global interrupt enable bit in mstatus
 /// mpie: previous mie in mstatus
 /// msie, mtie, meie: software, timer and external 
@@ -387,17 +387,85 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// mtvec: defines the location and type of trap
 /// handler vectors (this is hardcoded in this design)
 ///
+/// In normal instruction execution, mtime is incremented
+/// on the rising clock edge.
+///
+/// On Interrupts
+/// ~~~~~~~~~~~~~
+///
+/// Interrupts are checked at the beginning of each 
+/// execution cycle, "logically" before instruction
+/// execution begins (therefore interrupts take priority
+/// over exceptions). An interrupt trap occurs if:
+///
+/// 1) interrupts are globally enabled (mie set in mstatus)
+/// AND
+/// 2) external interrupt is enabled and pending (meie and meip)
+/// OR software interrupt is enabled and pending (msie and msip)
+/// OR timer interrupt is enabled and pending (mtie and mtip)
+///
+/// Interrupts in 2) are checked in the order given, and the
+/// first enabled and pending interrupt is the one that traps.
+///
+/// On an interrupt trap, the mepc is set to current pc + 4.
+/// The mcause register is set to (0x8000_0000 | code), where
+/// code is 3 for software interrupt, 7 for timer interrupt,
+/// or 11 for external interrupt. The interrupt_offset is set
+/// to (code << 2). 
+///
+/// On Exceptions
+/// ~~~~~~~~~~~~~
+///
+/// An exception is raised "mid" instruction (in the single-cycle
+/// design, this means some combinational element will raise an
+/// exception bit for the currently fetched instruction and core
+/// state). All these bits are fed into an exception encoder,
+/// which produces an exception bit and the mcause values.
+/// These are used as input to this module.
+///
+/// As a result, an exception trap will occur. The mepc is set
+/// to the current pc. The mcause register is set to the value
+/// of the mcause input. The interrupt_offset is set to 0.
+///
+/// On Any Trap
+/// ~~~~~~~~~~~~
 /// 
+/// On any trap (interrupts or exceptions), the mie bit is
+/// copied to mpie in mstatus, and the mie bit is set to zero.
+/// The exception_vector is set to the base address stored in
+/// mtvec (this is hard-coded in this design). 
+///
+/// Any other instruction that may have executed on this clock
+/// cycle must be disabled. This is achieved by disabling any
+/// action that would change the core's state. This is the write
+/// enable for the register file, the memory, and the CSR bus.
+/// The design can use the trap ouptut to determine whether to
+/// do this.
+///
+/// On Return From Trap
+/// ~~~~~~~~~~~~~~~~~~~
+///
+/// If a return from trap is requested by setting the mret
+/// input, then the mstatus mpie bit is copied to mie, and
+/// the mpie bit is set to 1. (The mepc output is to be used by 
+/// the next_pc_sel multiplexer to set the return address.)
 ///
 module trap_ctrl(
 	clk, // clock for updating registers
 	
 	input meie, // external interrupt source (from PLIC)
+	input mret, // set to perform a return from trap
+	input exception, // has an exception been raised
+	input [31:0] mcause, // the cause of the exception
+	input [31:0] pc, // used for setting mepc on exception
+	input [31:0] pc_plus_4, // used for setting mepc on interrupt
 	
 	output trap, // set if any trap is detected
 	output interrupt, // set if an interrupt is detected
-	output exception, // set if an exception is raised
-	
+	output [31:0] mepc, // exception pc for use by next_pc_sel
+	output [31:0] exception_vector, // for use by next_pc_set
+	output [31:0] interrupt_offset, // for use by next_pc_set
+
 	// Data memory read/write port
 	input [31:0] addr, // the read/write address bus 
 	input [1:0] width, /// the width of the read/write
@@ -413,8 +481,27 @@ module trap_ctrl(
 	output csr_out, //
 	output csr_bus_claim, // 1 if this module owns the CSR addr
 	output illegal_instr, // 1 if illegal instruction should be raised
+	);
+```
 
+### Exception encoder
 
+This module is a combinational unit that takes all the possible exception flags (from the various other modules of the data path) and convert them into an exception bit and exception cause value for use as input into the trap module. The signature is as follows:
+
+```verilog
+/// Converts exception bits into mcause values
+module exception_encoder(
+	input instr_addr_mis, // instruction address misaligned, mcause 0
+	input instr_access_fault, // instruction access fault, mcause 1
+	input illegal_instr, // illegal instruction, mcause 2
+	input breakpoint, // breakpoint (from ebreak), mcause 3
+	// load address misaligned unused in this design
+	input load_access_fault, // load access fault, mcause 5
+	// store address misaligned unused in this design
+	input store_access_fault, // store access fault, mcause 7
+	input ecall_mmode, // ecall from M-mode, mcause 11
+	output exception, // set on any exception
+	output mcause, // what exception was raised
 	);
 ```
 
