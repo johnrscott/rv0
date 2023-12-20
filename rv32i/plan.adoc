@@ -1,0 +1,5 @@
+= Plans
+
+This document describes the design of a single-cycle rv32i_zicsr RISC-V core.
+
+

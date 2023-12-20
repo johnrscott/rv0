@@ -1,4 +1,4 @@
-# Specification
+= Specification
 
 This part summarises the specification for the design, including the ISA that needs supporting, the CSR registers, and the interrupts/exceptions. Throughout the specification, the RISC-V specification is referenced in the following format:
 
@@ -6,22 +6,23 @@ This part summarises the specification for the design, including the ISA that ne
 * `v1_t9.1` means RISC-V volume 1 (unprivileged ISA), table 9.1
 * `v2_s2.3` means RISC-V volume 2 (privileged architecture), section 2.3
 
-All references to volume 1 refer to version 20191213 (document `riscv-spec-20191213.pdf`), and references to volume 2 refer to version 20211203 (document `riscv-privileged-20211203.pdf`). Both documents are available from the [official specification page](https://riscv.org/technical/specifications/).
+All references to volume 1 refer to version 20191213 (document `riscv-spec-20191213.pdf`), and references to volume 2 refer to version 20211203 (document `riscv-privileged-20211203.pdf`). Both documents are available from the https://riscv.org/technical/specifications/[official specification page].
 
-Other non-ISA specifications are also used. References to the Platform-Level Interrupt Controller (PLIC) Specification refer to version 1.0.0, 3/2023 (document `riscv-plic-1.0.0.pdf`, available [here](https://wiki.riscv.org/display/HOME/RISC-V+Technical+Specifications)). References use a format like:
+Other non-ISA specifications are also used. References to the Platform-Level Interrupt Controller (PLIC) Specification refer to version 1.0.0, 3/2023 (document `riscv-plic-1.0.0.pdf`, available https://wiki.riscv.org/display/HOME/RISC-V+Technical+Specifications[here]). References use a format like:
 
 * `plic_f1` means RISC-V PLIC specification, figure 1
 
-## Interrupts
+== Interrupts
 
 The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specification, based on SiFive chips. The CLINT memory map begins at address `0x1000_0000`. The meaning of the memory-mapped I/O registers in this region are as follows:
+
 * `msip`: write 1 to this bit to request a software interrupt, and write 0 to clear it. The value of this bit is reflected in the read-only `MSIP` field of the `mip` CSR. The register is initialised to zero.
 * `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
 * `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
 
 The external interrupt bit `meie` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
 
-## CPU State
+== CPU State
 
 This section contains the parts of the design that hold state, which will correspond to registered parts of the design. 
 
@@ -30,6 +31,7 @@ The device will need a register file of 32 32-bit registers, where x0 (the first
 There is a 32-bit program counter which points to the instruction currently executing.
 
 There will be a byte-addressable 32-bit physical address space (for use by the load and store instructions) backed by 
+
 * a region of read/write I/O region (containing memory-mapped registers)
 * a region of read/write main memory (RAM)
 
@@ -124,11 +126,11 @@ Finally, the following required performance monitoring counters are all implemen
 * `(0xc00 + n) hpmcountern`:  read-only zero (`n` ranges from 3 to 32)
 * `(0xc80 + n) hpmcounternh`: read-only zero (`n` ranges from 3 to 32)
 
-## Instructions
+== Instructions
 
 The required instructions are the 32-bit base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instruction `mret`.
 
-### Control and status register (CSR) instructions
+=== Control and status register (CSR) instructions
 
 The unprivileged specification (`v1_ch9`) defines the behaviour of the instructions which manipulate CSRs, in the Zicsr ISA extension. The behaviour of the instructions is as follows:
 
@@ -150,15 +152,15 @@ Instructions that read CSRs read the value of the CSR as it was just prior to in
 
 Instructions that attempt to perform an operation on a non-existent CSR raise an illegal instruction exception.
 
-#### Notes on behaviour
+==== Notes on behaviour
 
 * The instructions are defined (`v1_s9.1`) to atomically read and write CSRs. Since there is only one hart in this design, this required is satisfied by a single read/write operation.
 * The `csrrw` and `csrrwi` instructions are defined (`v1_t9.1`) to omit the CSR read if the destination register `rd` is `x0`, and not trigger any side effects that would occur on a read. In this design, no CSR has a side effect that occurs on a read, so for simplicity the `*rw*` instructions can perform a read irrespective of `rd`, and attempt the write to `rd` (which will have no effect if `rd` is `x0`).
 * In this design, all CSRs are 32-bits wide, so there is no need to zero-extend them before writing to registers.
 * In this design, writing invalid values to WLRL fields does not raise an illegal instruction exception (`v2_s2.3`). 
 
-## Exceptions
+== Exceptions
 
-## Interrupts
+== Interrupts
 
 This design implements the CLINT interrupt specification
