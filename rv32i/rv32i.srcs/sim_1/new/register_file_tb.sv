@@ -14,6 +14,7 @@ module register_file_tb();
         .rs1(rs1),
         .rs2(rs2),
         .rd_data(rd_data),
+        .rd(rd),
         .write_en(write_en),
         .clk(clk),
         .rs1_data(rs1_data),

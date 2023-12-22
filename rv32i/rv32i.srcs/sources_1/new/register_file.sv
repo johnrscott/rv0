@@ -15,9 +15,9 @@ module register_file(
     input clk, // clock
     input write_en, // write enable
 	input [31:0] rd_data, // data for write
+    input [4:0] rd, // destination register index for write
     input [4:0] rs1, // source register index A
     input [4:0] rs2, // source register index B
-    input [4:0] rd, // destination register index for write
     output [31:0] rs1_data, // read port A
     output [31:0] rs2_data // read port B
     );
