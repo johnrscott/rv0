@@ -14,3 +14,7 @@
 
 # Emacs autosaves
 *~
+
+# Asciidoc generated outputs
+*.pdf
+*.html
