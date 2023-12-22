@@ -214,9 +214,9 @@ The instruction memory is an instance of a `instr_mem` module, which has the fol
 /// output has an unspecified value.
 ///
 module instr_mem(
-	input [31:0] pc; // current pc
-	output [31:0] instr; // the instruction at pc
-	output instr_access_fault, // flag for instruction access fault exception
+	input [31:0] pc, // current pc
+	output [31:0] instr, // the instruction at pc
+	output instr_access_fault // flag for instruction access fault exception
 	);
 ----
 
@@ -484,19 +484,19 @@ module trap_ctrl(
 	output [31:0] interrupt_offset, // for use by next_pc_set
 
 	// Data memory read/write port
-	input [31:0] addr, // the read/write address bus 
-	input [1:0] width, /// the width of the read/write
-	input [31:0] data_in, // data to be written on rising clock edge
-	input data_write_en, // 1 to perform write, 0 otherwise
-	output [31:0] data_out, // data out	
+	input [31:0] data_mem_addr, // the read/write address bus 
+	input [1:0] data_mem_width, /// the width of the read/write
+	input [31:0] data_mem_wdata, // data to be written on rising clock edge
+	input data_mem_write_en, // 1 to perform write, 0 otherwise
+	output [31:0] data_mem_rdata, // data out	
 	output data_mem_claim, // set if this module claims the data memory access
 	
 	// CSR bus read/write port
-	input [11:0] addr, // CSR address. Used to claim a CSR read/write.
-	input [31:0] csr_in, // data to write to the CSR
+	input [11:0] csr_addr, // CSR address. Used to claim a CSR read/write.
+	input [31:0] csr_wdata, // data to write to the CSR
 	input csr_write_en, // 1 to write on rising clock edge
-	output csr_out, //
-	output csr_bus_claim, // 1 if this module owns the CSR addr
+	output csr_rdata, // CSR read data
+	output csr_claim, // 1 if this module owns the CSR addr
 	output illegal_instr, // 1 if illegal instruction should be raised
 	);
 ----
@@ -713,10 +713,10 @@ The `rd_data` signal for writing to `rd` is selected from multiple sources depen
 module register_file_rd_data_sel(
 	input [1:0] sel, // choose the output signal
 	input [31:0] main_alu_r, // the output from the main ALU
-	input [31:0] data_mem_out, // data output from data memory bus
-	input [31:0] csr_bus_out, // data output from CSR bus
+	input [31:0] data_mem_rdata, // data output from data memory bus
+	input [31:0] csr_rdata, // data output from CSR bus
 	input [31:0] pc_plus_4, // current pc + 4, from next_pc_sel
-	output write_data //
+	output rd_data // output data for writing to register rd
 	);
 ----
 
