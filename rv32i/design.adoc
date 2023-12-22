@@ -1,53 +1,57 @@
-# Design
+= Design
 
 This file contains the design of the core, including the data path and control. Each part will be broken down into what modules and instances are needed, and how the instructions utilise each part of the design.
 
-## Data path (instructions)
+== Data path (instructions)
 
 This section describes how the instruction uses the hardware of the data path.
 
-### Register-register instructions
+=== Register-register instructions
 
 The following instructions operate on two register operands and write their result into the register file: `add`, `sub`, `sll`, `slt`, `sltu`, `xor`, `srl`, `sra`, `or`, `and`. Supporting these instructions requires:
+
 * a register file that supports two port reads (combinationally depending on the `rs1` and `rs2` fields in the R-type instruction format); and supports a single-port registered write port, with the write register index selected from the `rd` field in the R-type instruction.
 * an ALU with two input ports for 32-bit operands; that supports the arithmetic and logical operations above; has inputs routable from the register file read data output ports; and has an output routable to the register file write data input port.
 * the next `pc` is `pc+4`.
 
-### Register-immediate instructions
+=== Register-immediate instructions
 
 The following instructions operate on a register operand and an immediate encoded in the instructions: `addi`, `slti`, `sltiu`, `xori`, `ori`, `andi`, `slli`, `srli`, `srai`. Supporting these instructions requires:
+
 * a way to route the `imm[11:0]` field of the I-type instruction to the second input operand of the ALU (the first input operand comes from the `rs1` output of the register file)
 * in the case of `slli`, `srli`, and `srai`, the `imm[11:0]` fields must be masked to the lower 5 bits, and bit 30 of the instruction should be used to control the type of right shift operation in the ALU (1 for arithmetic shift, 0 for logical).
 * routing the output of the ALU to the write port of the register file, with register index from the `rd` field of the I-type instruction.
 * the next `pc` is `pc+4`.
 
-### Branch instructions
+=== Branch instructions
 
 The following instructions operate on two register operands, and take a pc-relative branch if a condition is satisfied: `beq`, `bne`, `blt`, `bge`, `bltu`, `bgeu`. Supporting these instructions requires:
+
 * routing the two register operands to the ALU, the same as the register-register instructions
 * setting the operation of the ALU depending on the instruction:
-  * `beq`: subtract
-  * `bne`: subtract
-  * `blt`: use `slt`
-  * `bge`: use `slt`
-  * `bltu`: use `sltu`
-  * `bgeu`: use `sltu`
+** `beq`: subtract
+** `bne`: subtract
+** `blt`: use `slt`
+** `bge`: use `slt`
+** `bltu`: use `sltu`
+** `bgeu`: use `sltu`
 * creating a `branch_taken` signal from the output of the ALU depending on the instruction:
-  * `beq`: `zero`
-  * `bne`: `!zero`
-  * `blt`: `alu_result[0]`
-  * `bge`: `!alu_result[0]`
-  * `bltu`: `alu_result[0]`
-  * `bgeu`: `!alu_result[0]`
+** `beq`: `zero`
+** `bne`: `!zero`
+** `blt`: `alu_result[0]`
+** `bge`: `!alu_result[0]`
+** `bltu`: `alu_result[0]`
+** `bgeu`: `!alu_result[0]`
 * form the immediate `offset` from the `imm` fields in the B-type instruction.
 * if `branch_taken` signal is set and `pc + offset` is not four-byte aligned, raise `InstructionAddressMisaligned` exception; otherwise, next `pc` is `pc + offset`.
 * if `!branch_taken`, next `pc` is `pc + 4`.
 
 Note: does this instruction require two ALUs? One for the branch condition comparison and one for `pc + offset`? Or can we maybe use the same ALU being used for `pc + 4` to compute `pc + offset`?
 
-### Load instructions
+=== Load instructions
 
 The following instructions read a value from memory and write it to a destination registers: `lb`, `lh`, `lw`, `lbu`, `lhu`. Supporting these instructions requires:
+
 * routing the `base` (`rs1`) register index from the I-type instruction to the register file
 * routing the output of the register file to the first input of the ALU
 * routing the `offset` stored in the instruction to the other input of the ALU
@@ -59,9 +63,10 @@ The following instructions read a value from memory and write it to a destinatio
 * routing that result to the register file write port (write register comes from `rd` value in instruction).
 * set next `pc` to `pc + 4`.
 
-### Store instructions
+=== Store instructions
 
 The following instructions write a value from a register to a memory address: `sb`, `sh`, `sw`. Supporting these instructions requires:
+
 * routing the `base` (`rs1`) register index from the S-type instruction to the first read port of the register file
 * routing the first output of the register file to the first input of the ALU
 * obtaining the `offset` from the `imm` fields of the S-type instruction and placing the result on the second ALU 
@@ -73,9 +78,10 @@ The following instructions write a value from a register to a memory address: `s
 * if write is OK, configure memory to write a byte, halfword, or word, based on the instruction
 * set next `pc` to `pc + 4`
 
-### Upper immediate instructions
+=== Upper immediate instructions
 
 These instruction construct upper immediates: `lui` and `auipc`; they are implemented by:
+
 * routing the `dest` field of the U-type instruction to the write port address of the register file.
 * combine the `imm` field of the U-type instruction with 12 low zeros; route it to port 2 of the ALU
 * set the ALU operation to addition
@@ -83,9 +89,10 @@ These instruction construct upper immediates: `lui` and `auipc`; they are implem
 * route the output of the ALU to the write data port of the register file
 * set next `pc` to `pc + 4`
 
-### Jump and link
+=== Jump and link
 
 The `jal` instruction is implemented by:
+
 * routing the `imm` fields of the J-type instruction through a sign-extending module
 * routing the sign extended result to the second port of the ALU
 * routing the current `pc` to the first port of the ALU
@@ -95,9 +102,10 @@ The `jal` instruction is implemented by:
 * route the `dest` field of the J-type instruction to the write address port of the register file
 * setting the write data port of the register file to `pc + 4`
 
-### Jump and link register
+=== Jump and link register
 
 The `jalr` instruction is implemented by:
+
 * routing the `imm` fields of the I-type instruction to a sign extension module
 * routing the result of the sign extension to the second port of the ALU
 * routing the `base` field of the I-type instruction to the first read port of the register file
@@ -109,9 +117,10 @@ The `jalr` instruction is implemented by:
 * route the `dest` field of the J-type instruction to the write address port of the register file
 * setting the write data port of the register file to `pc + 4`
 
-### Control and status register instructions
+=== Control and status register instructions
 
 The instructions `csrrw`, `csrrs`, `csrrc`, `csrrwi`, `csrrsi`, and `csrrci` read and write CSRs. The `*rw*` instructions always write irrespective of arguments, and the `*rs*/*rc*` instructions always read irrespective of arguments. These instructions are implemented by:
+
 * routing the CSR address to the CSR address bus (which specifies a CSR to both read and write)
 * if the CSR does not exist, raise an illegal instruction exception and do not perform the operations below.
 * routing the destination register index `rd` of the instruction to the write data address port of the register file.
@@ -120,44 +129,47 @@ The instructions `csrrw`, `csrrs`, `csrrc`, `csrrwi`, `csrrsi`, and `csrrci` rea
 * configure the ALU operation to be OR (`csrrs(i)`) or AND (`csrrc(i)`) depending on the instruction
 * route the `rs1` field to the first read port of the register file (this can be done even for immediate instructions; the output of the register file is unused)
 * select the second port of the ALU from: 
-  * the output of the first read port on the register file (`csrrs`)
-  * the negated output of the first read port on the register file (`csrrc`)
-  * the `uimm` instruction field (zero-extended) (`csrrsi`)
-  * the `!uimm` field (zero-extended) (`csrrci`)
+** the output of the first read port on the register file (`csrrs`)
+** the negated output of the first read port on the register file (`csrrc`)
+** the `uimm` instruction field (zero-extended) (`csrrsi`)
+** the `!uimm` field (zero-extended) (`csrrci`)
 * select the CSR write data line from
-  * the first read output from the register file (`csrrw`)
-  * the `uimm` field from the instruction (`csrrwi`)
-  * the output of the ALU (the rest of the instructions)
+** the first read output from the register file (`csrrw`)
+** the `uimm` field from the instruction (`csrrwi`)
+** the output of the ALU (the rest of the instructions)
 * set the CSR bus write enable signal depending on the instruction and whether `rs1` is zero, or `uimm` is zero.
 * if the attempted write to the CSR is read-only, raise an illegal instruction exception, and prevent the CSR data being written to `rd`.
 
 In the CSR bus, if a write is performed, ensure this prevents any automatic updating action the CSR may take when it is not written. Each CSR module on the CSR bus is responsible for only updating its writable fields (and masking out attempted changes to non-writable fields, or WARL fields where the written value is not legal).
 
-### Nops
+=== Nops
 
 The instructions `fence` and `wfi` are implemented as `nop`:
+
 * set the next `pc` to `pc + 4`
 
-### Environment calls
+=== Environment calls
 
 The instructions `ecall` and `ebreak` raise the exceptions `MmodeEcall` and `Breakpoint` respectively, and take no further action.
 
-### Return from trap
+=== Return from trap
 
 The `mret` instruction is implemented by:
+
 * restoring the `MPIE` bit to the `MIE` bit in the `mstatus` CSR
 * setting the `MPIE` bit to 1 in the `mstatus` CSR
 * setting the next `pc` to `mepc`
 
-## Data path (modules)
+== Data path (modules)
 
 This presents a draft of the different components of the data path, focusing on what they will do while different instructions are executing. 
 
-### Raising an exception
+=== Raising an exception
 
 The exception mechanism is partly implemented in the data path and partly in the control unit. The policy for raising an exception in this single-cycle design is that no combinational calculation which caused the exception to be raised can be modified by the exception (otherwise there would be a circular dependency in the calculation). As a result, extra logic may need to be implemented that disables any actions that would be taken where there is no exception, in cases where disabling an action would also de-assert the exception itself.
 
 Due to the results of calculations performed in the combinational work of an instruction, the data path may need to raise an exception. When this happens, the instruction should be prevented from registering the results of the instruction that would occur if no exception occurred, by having the control unit disable these writes. In addition, the following actions take place when an exception is raised:
+
 * the `mepc` CSR is set to `pc`
 * the `mcause` register is set to be written with the exception cause
 * the `MIE` bit is saved to `MPIE` in the `mstatus` CSR, and the `MIE` bit itself is cleared.
@@ -165,18 +177,19 @@ Due to the results of calculations performed in the combinational work of an ins
 
 Note that many of these steps also happen for an `interrupt` (they are generic trap steps). However, an interrupt sets a different `mepc` value and `mcause`, and jumps to a vectored interrupt).
 
-### `pc` (sequential)
+=== `pc` (sequential)
 
 The current `pc` is a single 32-bit register, which is loaded on the rising edge of the clock from the output of `next_pc`.
 
-```verilog
+[,verilog]
+----
 reg [31:0] pc;
 wire [31:0] next_pc; // output from next_pc instance
 
 always @(posedge clk) begin
 	pc <= next_pc
 end
-```
+----
 
 No check is performed for address alignment, because that is checked in `next_pc`.
 
@@ -184,7 +197,8 @@ No check is performed for address alignment, because that is checked in `next_pc
 
 The instruction memory is an instance of a `instr_mem` module, which has the following signature:
 
-```verilog
+[,verilog]
+----
 /// Fetch an instruction from program memory
 ///
 /// The instruction memory is preloaded with instructions at
@@ -204,15 +218,16 @@ module instr_mem(
 	output [31:0] instr; // the instruction at pc
 	output instr_access_fault, // flag for instruction access fault exception
 	);
-```
+----
 
-### Data memory read/write (sequential)
+=== Data memory read/write (sequential)
 
 The data memory is a byte-addressable which holds both main memory and memory-mapped I/O regions. It is sequential because write data is stored into the memory on the rising edge of the clock (read data is combinational). There is one write port and one read port. The only instructions which interact with the data memory are load and store instructions.
 
 The signature of the `data_mem` module is as follows:
 
-```verilog
+[,verilog]
+----
 /// Data memory module with one write and one read port
 ///
 /// To read, set the read_addr and read data from the
@@ -272,9 +287,9 @@ module data_mem(
 	output load_access_fault, // set on LoadAccessFault exception
 	output store_access_fault, // set on StoreAccessFault exception
 	);
-```
+----
 
-#### Notes
+==== Notes
 
 Maybe this is more like a physical memory attributes checker module, not the actual data memory. Ideally, the I/O region (with the memory-mapped CSRs and in the future, other peripherals) should be independent of the data memory. Probably a bus architecture of some kind is more appropriate, where the bus itself is the physical address space, but devices attached to the bus can opt to service the request if the address is within their memory range. There could be a data bus that contains the output, driven by whichever module is servicing the request. The physical memory attributes checker could also be attached to this bus.
 
@@ -282,7 +297,8 @@ Possible there is no need for a PMA checker at all -- if each peripheral connect
 
 Any device on the data memory physical address bus could have the following signature:
 
-```verilog
+[,verilog]
+----
 /// Example device connected to data memory bus
 ///
 /// For this bus, only a single read or write is allowed at once. This
@@ -315,7 +331,7 @@ module example_device(
 	
 	// other signals specific to the device
 	);
-```
+----
 
 Devices that are needed on the bus include:
 
@@ -324,11 +340,12 @@ Devices that are needed on the bus include:
 * `mtimecmp`: memory-mapped register, claims reads/writes in the range `0x1000_4000 - 0x1000_4008`.
 * `mtime`: memory-mapped register, claims reads/writes in the range `0x1000_bff8 - 0x1000_c000`. Automatically increment on each clock cycle.
 
-### Control and Status Register Bus
+=== Control and Status Register Bus
 
 The CSR registers are attached to an address space which is different from the data memory physical address space, but which can be implemented in the same way. Each CSR is represented as a device attached to the bus (similar CSRs can be grouped into a single module), with the following signature:
 
-```verilog
+[,verilog]
+----
 module csr_module(
 	input clk, // clock for writing on the rising edge
 	input [11:0] addr, // CSR address. Used to claim a CSR read/write.
@@ -341,9 +358,10 @@ module csr_module(
 	// Other arguments not related to CSR bus (e.g. memory mapping,
 	// hardware access, etc.)
 	);
-```
+----
 
 Modules will be designed so that a given register is controlled by only a single module. These are the kinds of modules that will be present:
+
 * read-only zero CSR modules: these only need a single CSR-bus port which always returns zero on reads or illegal instruction on writes. Examples include `mvendorid`, `marchid`, `mimpid`, `mhartid`, `mconfigptr`, `misa`, `mhpmcountern`, `mhpmcounternh`, `mhpmevent`, `hpmcountern`, `hpmcounternh`, `mtval` (these can all be collected into a single module)
 * read/write CSRs which are not used by hardware: these require a read/write CSR-bus interface only. Examples are `mscratch`.
 * read/write CSRs which can only be read by hardware: these need a read/write CSR-bus port, and access for hardware to read the bits. Examples include `mie`.
@@ -351,13 +369,12 @@ Modules will be designed so that a given register is controlled by only a single
 * read/write CSRs which can also be written by hardware: these need a CSR-bus port for read/write, and also a direct-hardware port for the CPU to read/update the bits in the CSRs. Examples include `mstatus` and `mstatush` (note that this is a read/write register, even though all fields are read-only zero), `mcycle`, `mcycleh`, `minstret`, `minstreth`, `mcause`, `mepc`. These modules should also provide access to read-only shadows of these registers (like `cycle`, `cycleh`, `instret`, `instreth`).
 * read-only memory-mapped CSRs updated by hardware: these require a CSR-bus supporting reads (writes return illegal instruction), and also a data memory bus for access via the physical address space. In addition, hardware requires a read/write port for reading and updating the values. Examples include `time` and `timeh` (i.e. 64-bit `mtime`)
 
-
-### Trap module (sequential)
+==== Trap module (sequential)
 
 This module is responsible for controlling interrupts and exceptions. It also holds the registers related to interrupts and exceptions, some of which are memory-mapped and some are exposed as CSRs. The signature of the module is shown below:
 
-
-```verilog
+[,verilog]
+----
 /// Trap control (interrupts and exceptions)
 ///
 /// This module holds the following status of the core:
@@ -482,13 +499,14 @@ module trap_ctrl(
 	output csr_bus_claim, // 1 if this module owns the CSR addr
 	output illegal_instr, // 1 if illegal instruction should be raised
 	);
-```
+----
 
-### Exception encoder
+=== Exception encoder
 
 This module is a combinational unit that takes all the possible exception flags (from the various other modules of the data path) and convert them into an exception bit and exception cause value for use as input into the trap module. The signature is as follows:
 
-```verilog
+[,verilog]
+----
 /// Converts exception bits into mcause values
 module exception_encoder(
 	input instr_addr_mis, // instruction address misaligned, mcause 0
@@ -503,9 +521,9 @@ module exception_encoder(
 	output exception, // set on any exception
 	output mcause, // what exception was raised
 	);
-```
+----
 
-### Main ALU (combinational)
+=== Main ALU (combinational)
 
 The main ALU is responsible for register-register calculation, register-immediate calculations, and address calculations. It does not raise any exceptions. The ALU should be able to perform the following operations on its operands `a` and `b`, to produce result `r`:
 
@@ -524,7 +542,8 @@ The only required flag is `zero`, for use by `beq` and `bne` instructions. Other
 
 The signature for the `alu` module used for the `main_alu` component is shown below:
 
-```verilog
+[,verilog]
+----
 /// Arithmetic Control Unit
 ///
 /// This is a purely combinational ALU implementation.
@@ -562,15 +581,16 @@ module alu(
     output [31:0] r, // 32-bit result
     output zero // 1 if r is zero, 0 otherwise
     );
-```
+----
 
 An instance of the `alu` module will also be used for the `next_pc` calculation.
 
-### Register file (sequential)
+=== Register file (sequential)
 
 The register file has two combinational read ports and one sequential write port. The register file does not raise exceptions. The signature of the register file is shown below:
 
-```verilog
+[,verilog]
+----
 /// 32-bit Register file
 ///
 /// There are 32 32-bit registers x0-x31, with x0 hardwired
@@ -592,13 +612,14 @@ module register_file(
     output [31:0] rs1_data, // read port A
     output [31:0] rs2_data // read port B
     );
-```
+----
 
-## Data path (multiplexers)
+== Data path (multiplexers)
 
 This section contains the designs for signal selection multiplexers at the inputs to most of the data path modules. They are named using the format `<module_name>_<input_name>_sel` where `<module_name>` and `<input_name>` specifies which signal of which module is being driven. The control signals for each multiplexer come from the control unit. Sometimes, the module may contain logic in addition to a multiplexer for generating the input signal.
 
 Some signals do not require multiplexers, because they are always taken from the same source. The signals corresponding to register indices are as follows:
+
 * `register_file_rs1` is always tied to the `rs1` field of the instructions (`instr[19:15]`)
 * `register_file_rs2` is always tied to the `rs2` field of the instructions (`instr[24:20]`)
 * `register_file_rd` is always tied to the `rd` field of the instructions (`instr[11:7]`)
@@ -606,15 +627,17 @@ Some signals do not require multiplexers, because they are always taken from the
 It does not matter if these fields are not used in the instruction, and therefore contains junk; in these cases, `register_file_write_en` is de-asserted, and the combinational outputs `rs1_data` and `rs2_data` are ignored.
 
 Only the load and store instructions can read or write to the data memory bus, which means the following signals are always routed:
+
 * data memory bus `addr` always comes from the main ALU result `r`
 * data memory bus `width` field is calculated statically from the instruction
 * data memory bus `write_data` is routed from `rs2_data` from the register file
 
 The multiplexers that select between different potential inputs are outlined below.
 
-### Main ALU input ports
+=== Main ALU input ports
 
 There are two multiplexers which control the input ports to the main ALU: `main_alu_a_sel` and `main_alu_b_sel`. The following guidelines have been followed when selecting which signals is routed to which port of the main ALU:
+
 * `rs1_data` and `rs2_data` are routed to ports `a` and `b` of the ALU
 * immediate fields are typically routed to port `b` of the ALU
 * the `pc` is routed to the first port of the ALU if it is needed
@@ -623,7 +646,8 @@ There are two multiplexers which control the input ports to the main ALU: `main_
 
 The signatures for the two ALU input multiplexers are as follows. The first port is controlled by:
 
-```verilog
+[,verilog]
+----
 /// Selects the signal input for port a of the main ALU
 ///
 /// The sel argument selects between the inputs (sel is in binary):
@@ -645,11 +669,12 @@ module main_alu_a_sel(
 	input [4:0] uimm, // uimm field from CSR instructions
 	output a // the main ALU a signal
 	);
-```
+----
 
 The second port is controlled by:
 
-```verilog
+[,verilog]
+----
 /// Selects the signal input for port b of the main ALU
 ///
 /// The sel argument selects between the inputs (sel is in binary):
@@ -668,13 +693,14 @@ module main_alu_b_sel(
 	input [31:0] imm, // immediate field, already extracted/sign-extended
 	output b // the main ALU b signal
 	);
-```
+----
 
-### Register file write data
+=== Register file write data
 
 The `write_data` signal for writing to `rd` is selected from multiple sources depending on the instruction. The module is given below
 
-```verilog
+[,verilog]
+----
 /// Write data for rd in register file
 ///
 /// The sel arguments selects between the inputs (sel is in binary):
@@ -692,15 +718,16 @@ module register_file_write_data_sel(
 	input [31:0] pc_plus_4, // current pc + 4, from next_pc_sel
 	output write_data //
 	);
-```
+----
 
-### Next program counter
+=== Next program counter
 
 The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
+
 * `A = pc`, `B = 4`: most instructions
 * `A = pc`, `B = offset`: control flow instructions; `offset` is
-  * obtained from sign extending `imm` fields in instruction (branch instructions)
-  * output from `main_alu` for `jal`
+** obtained from sign extending `imm` fields in instruction (branch instructions)
+** output from `main_alu` for `jal`
 * `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
 * `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
 * `next_pc = mepc`: `mret` instruction only
@@ -709,7 +736,8 @@ The output from this adder is checked for instruction alignment (multiple of 4).
 
 The module that will calculate the `pc` is called `next_pc`, and has the following signature:
 
-```verilog
+[,verilog]
+----
 /// Combinational module to calculate the next value of
 /// the program counter. The control signal sel sets
 /// the calculation of maybe_next_pc as follows:
@@ -753,4 +781,4 @@ module next_pc_sel(
 	output [31:0] next_pc, // the next value to load into pc
 	output instr_addr_mis, // flag for instruction address misaligned exception
 	);
-```
+----

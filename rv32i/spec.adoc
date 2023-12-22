@@ -39,22 +39,22 @@ There will be a byte-addressable 32-bit physical address space (for use by the l
 
 The memory map for the physical address space is as follows (all addresses are in hexadecimal):
 
-| Memory Name     | Start Address | Memory-mapped Register    | Size | Physical Memory Attributes    |
-|-----------------|---------------|---------------------------|------|-------------------------------| 
-| Instruction ROM | 0000\_0000    |                           | 1024 | Read-only (instruction fetch) |
-|                 | 0000\_0000    | Reset vector (initial PC) | 4    |                               |
-|                 | 0000\_0004    | NMI vector                | 4    |                               |
-|                 | 0000\_0008    | Exception vector (mtvec)  | 4    |                               |
-|                 | 0000\_0014    | Software interrupt vector | 4    |                               |
-|                 | 0000\_0024    | Timer interrupt vector    | 4    |                               |
-|                 | 0000\_0034    | External interrupt vector | 4    |                               |
-| I/O             | 1000\_0000    |                           |      | Read/write (load/store)       |
-|                 | 1000\_0000    | msip                      | 4    |                               |
-|                 | 1000\_4000    | mtimecmp                  | 8    |                               |
-|                 | 1000\_bff8    | mtime                     | 8    |                               |
-| Main Memory     | 2000\_0000    |                           | 1024 | Read/write (load/store)       |
-|
-
+[cols="1,1,1,1,1"]
+|===
+| Memory Name     | Start Address | Memory-mapped Register    | Size | Physical Memory Attributes   
+| Instruction ROM | 0000\_0000    |                           | 1024 | Read-only (instruction fetch)
+|                 | 0000\_0000    | Reset vector (initial PC) | 4    |                              
+|                 | 0000\_0004    | NMI vector                | 4    |                              
+|                 | 0000\_0008    | Exception vector (mtvec)  | 4    |                              
+|                 | 0000\_0014    | Software interrupt vector | 4    |                              
+|                 | 0000\_0024    | Timer interrupt vector    | 4    |                              
+|                 | 0000\_0034    | External interrupt vector | 4    |                              
+| I/O             | 1000\_0000    |                           |      | Read/write (load/store)      
+|                 | 1000\_0000    | msip                      | 4    |                              
+|                 | 1000\_4000    | mtimecmp                  | 8    |                              
+|                 | 1000\_bff8    | mtime                     | 8    |                              
+| Main Memory     | 2000\_0000    |                           | 1024 | Read/write (load/store)
+|===
 
 There are the following minimal set of required control and status registers (CSR). Each is listed in the format "`CSR-address CSR-name`: description". 
 
@@ -70,24 +70,25 @@ First, there is a set of required informational registers:
 The state of the CPU is stored in the following status registers:
 
 * `0x300 mstatus`: read/write, containing both WPRI and WARL fields. The bit fields which are non-zero are as follows (assumes only M-mode):
-  * bit 3: MIE (interrupt enable), read/write
-  * bit 7: MPIE (previous value of interrupt enable), read/write (?)
-  * bits [12:11]: MPP (previous privilege mode), WARL always 0b11 (?)
+** bit 3: MIE (interrupt enable), read/write
+** bit 7: MPIE (previous value of interrupt enable), read/write (?)
+** bits [12:11]: MPP (previous privilege mode), WARL always 0b11 (?)
+  
 * `0x310 mstatush`: read/write, upper 32-bit of status; all fields are read-only zero (only little-endian memory is supported).
   
 In addition to the global bit in the status register, interrupts are controlled and monitored by these registers:
 
 * `0x304 mie`: read/write interrupt-enable register. To enable an interrupt in M-mode, both mstatus.MIE and the bit in mie must be set. Bits corresponding to interrupts that cannot occur must be read-only zero.
 * `0x344 mip`: 32-bit read/write interrupt-pending register. Since all fields are read-only, writes to this CSR are no-op. The following bits are defined:
-  * bit 3: machine software interrupt pending (read-only)
-  * bit 7: machine timer interrupt pending (read-only)
-  * bit 11: machine-level external interrupt pending (read-only)
+** bit 3: machine software interrupt pending (read-only)
+** bit 7: machine timer interrupt pending (read-only)
+** bit 11: machine-level external interrupt pending (read-only)
 
 When a trap occurs (either due to an imprecise asynchronous interrupt or a precise synchronous exception), the following registers control where control flow is transferred to and where it returns to after the trap:
 
 * `0x305 mtvec`: read-only, trap handler vector table base address
-  * bits [1:0]: 1 (vectored mode)
-  * bits [31:2]: trap vector table base address (4-byte aligned)
+** bits [1:0]: 1 (vectored mode)
+** bits [31:2]: trap vector table base address (4-byte aligned)
 * `0x341 mepc`: 32-bit, read/write register, stores the return-address from trap handler. WARL, valid values are allowed physical addresses (4-byte aligned and fit within physical memory address width).
 
 Information about the trap is obtained from these registers:
@@ -142,6 +143,7 @@ The unprivileged specification (`v1_ch9`) defines the behaviour of the instructi
 * `csrrci`: read the addressed CSR into destination register `rd`. Then, only if the immediate `uimm` is not `0`, bitwise-AND the current value of the CSR with `!uimm` (zero-extended to 32 bits _after_ negation), and write the result back to the CSR (i.e. clear bits in the CSR where there is a 1 in `uimm`).
 
 Any instructions that write to a CSR:
+
 * will raise an illegal instruction exception if the CSR is read-only. In this case, the state of registers will be as if the instruction did not occur.
 * will not change the value of an CSR bits that are read-only in otherwise writable registers
 * for WLRL fields in writable CSRs, any value that is written (even an invalid one) will be written anyway, without any checking in hardware.
