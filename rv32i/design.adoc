@@ -623,6 +623,7 @@ Some signals do not require multiplexers, because they are always taken from the
 * `register_file_rs1` is always tied to the `rs1` field of the instructions (`instr[19:15]`)
 * `register_file_rs2` is always tied to the `rs2` field of the instructions (`instr[24:20]`)
 * `register_file_rd` is always tied to the `rd` field of the instructions (`instr[11:7]`)
+* the CSR-bus address is always routed from the `csr` field in the CSR instruction format (`instr[31:20]`)
 
 It does not matter if these fields are not used in the instruction, and therefore contains junk; in these cases, `register_file_write_en` is de-asserted, and the combinational outputs `rs1_data` and `rs2_data` are ignored.
 
@@ -641,8 +642,9 @@ There are two multiplexers which control the input ports to the main ALU: `main_
 * `rs1_data` and `rs2_data` are routed to ports `a` and `b` of the ALU
 * immediate fields are typically routed to port `b` of the ALU
 * the `pc` is routed to the first port of the ALU if it is needed
-* the CSR-bus data output is routed to port `b` of the main ALU; for CSR instructions, port `a` is used for `rs1_data`, `!rs1_data`, and the `uimm`-derived immediates.
-* the CSR-bus address is always routed from the `csr` field in the CSR instruction format (`instr[31:20]`)
+* for CSR instructions
+** the CSR-bus data output is routed to port `b` of the main ALU
+** port `a` is used for `rs1_data`, `!rs1_data`, and the `uimm`-derived immediates.
 
 The signatures for the two ALU input multiplexers are as follows. The first port is controlled by:
 
@@ -781,4 +783,54 @@ module next_pc_sel(
 	output [31:0] next_pc, // the next value to load into pc
 	output instr_addr_mis, // flag for instruction address misaligned exception
 	);
+----
+
+=== Immediate generation for ALU operand `b`
+
+Immediates are used in the following types of instructions: register-immediate, upper-immediate, load/store, jal.  The `uimm` field in CSR instructions is also excluded because that is routed to the main ALU operand `a`. The signature for the immediate generation is:
+
+[,verilog]
+----
+/// Immediate generation for ALU operand b
+///
+/// Generate a 32-bit immediate for use in calculations
+/// with the ALU. This includes register-immediates,
+/// upper-immediates, loads, and stores, but does not
+/// include any control flow instructions (which use
+/// a dedicated ALU for adding to the program counter).
+/// The sel input is used to pick the output immediate
+/// as follows:
+///
+/// 00: { 20{instr[31]}, instr[31:20] }
+/// for register-immediates, loads, stores
+/// 
+/// 01: { instr[31:12], 12'b0 }
+/// for upper-immediate instructions
+///
+/// 10: {}
+/// for jal instruction
+module main_alu_b_imm_sel(
+       input [1:0] sel, // pick immediate calculation
+       input [31:0] instr, // fetched instruction
+       output [31:0] imm // output 32-bit immediate for calculation
+       );
+----
+
+=== Immediate generation for `next_pc_sel`
+
+This module generates the `offset` and `jalr_target` inputs for the `next_pc_sel` module, which is required by jump and conditional branch control flow instructions. The signature is as follows:
+
+[,verilog]
+----
+/// Control flow offsets/targets
+///
+/// This module extracts the immediate fields used in jal/jalr
+/// and conditional branch instructions. 
+module control_flow_imm_gen(
+
+
+       );
+
+
+
 ----
