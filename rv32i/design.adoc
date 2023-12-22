@@ -605,7 +605,7 @@ The register file has two combinational read ports and one sequential write port
 module register_file(
     input clk, // clock
     input write_en, // write enable
-	input [31:0] write_data, // data for write
+	input [31:0] rd_data, // data for write
     input [4:0] rs1, // source register index A
     input [4:0] rs2, // source register index B
     input [4:0] rd, // destination register index for write
@@ -697,7 +697,7 @@ module main_alu_b_sel(
 
 === Register file write data
 
-The `write_data` signal for writing to `rd` is selected from multiple sources depending on the instruction. The module is given below
+The `rd_data` signal for writing to `rd` is selected from multiple sources depending on the instruction. The module is given below
 
 [,verilog]
 ----
@@ -710,7 +710,7 @@ The `write_data` signal for writing to `rd` is selected from multiple sources de
 ///  10: csr_bus_out, for all CSR instructions
 ///  11: pc + 4, for jal/jalr instructions
 ///
-module register_file_write_data_sel(
+module register_file_rd_data_sel(
 	input [1:0] sel, // choose the output signal
 	input [31:0] main_alu_r, // the output from the main ALU
 	input [31:0] data_mem_out, // data output from data memory bus
