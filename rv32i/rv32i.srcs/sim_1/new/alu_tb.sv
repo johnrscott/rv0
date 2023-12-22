@@ -4,14 +4,14 @@ module alu_tb();
 
     reg [31:0] a = 32'h4321_dcba; // First 32-bit operand
     reg [31:0] b = 32'h1234_abcd; // Second 32-bit operand
-    reg [3:0] aluc = 0; // ALU control signals (see comments above)
+    reg [3:0] alu_op = 0; // ALU control signals (see comments above)
     wire [31:0] r; // 32-bit result
     wire zero; // 1 if r is zero, 0 otherwise
     
     alu alu_0(
         .a(a),
         .b(b),
-        .aluc(aluc),
+        .alu_op(alu_op),
         .r(r),
         .zero(zero)
         );
@@ -19,42 +19,42 @@ module alu_tb();
     initial begin
     
         // Check addition works
-        aluc = 4'b0_000;
+        alu_op = 4'b0_000;
         #1 assert (r == 32'h5556_8887)
             else $error("Addition result is wrong");
         #1 assert (zero == 0)
             else $error("Unexpected zero asserted");
         
         // Check subtraction works
-        aluc = 4'b1_000;
+        alu_op = 4'b1_000;
         #1 assert (r == 32'h30ed_30ed)
             else $error("Subtraction result is wrong");
         #1 assert (zero == 0)
             else $error("Unexpected zero asserted");
                              
         // Check logical and
-        aluc = 4'b0_111;
+        alu_op = 4'b0_111;
         #1 assert (r == 32'h0220_8888)
             else $error("AND result is wrong");
         #1 assert (zero == 0)
             else $error("Unexpected zero asserted");        
           
         // Check logical or
-        aluc = 4'b0_110;
+        alu_op = 4'b0_110;
         #1 assert (r == 32'h5335_ffff)
             else $error("OR result is wrong");
         #1 assert (zero == 0)
             else $error("Unexpected zero asserted");    
               
         // Check logical xor
-        aluc = 4'b0_100;
+        alu_op = 4'b0_100;
         #1 assert (r == 32'h5115_7777)
             else $error("XOR result is wrong");
         #1 assert (zero == 0)
             else $error("Unexpected zero asserted");           
              
         // Check set-if-less-than unsigned (not less than)
-        aluc = 4'b0_010;
+        alu_op = 4'b0_010;
         #1 assert (r == 0)
             else $error("set-if-less-than (unsigned) result is wrong");
         #1 assert (zero == 1)
@@ -63,7 +63,7 @@ module alu_tb();
         // Check set-if-less-than unsigned (is less than)
         a = 1;
         b = 2;
-        aluc = 4'b0_010;
+        alu_op = 4'b0_010;
         #1 assert (r == 1)
             else $error("set-if-less-than (unsigned) result is wrong");
         #1 assert (zero == 0)
@@ -72,7 +72,7 @@ module alu_tb();
         // Check set-if-less-than signed (not less than)
         a = -1;
         b = -2;
-        aluc = 4'b0_011;
+        alu_op = 4'b0_011;
         #1 assert (r == 0)
             else $error("set-if-less-than (signed) result is wrong");
         #1 assert (zero == 1)
@@ -81,7 +81,7 @@ module alu_tb();
         // Check set-if-less-than signed (is less than)
         a = -5;
         b = 4;
-        aluc = 4'b0_011;
+        alu_op = 4'b0_011;
         #1 assert (r == 1)
             else $error("set-if-less-than (signed) result is wrong");
         #1 assert (zero == 0)
@@ -91,7 +91,7 @@ module alu_tb();
         // but tests the ALU control signals)
         a = 32'h0000_0f00; // data to be shifted
         b = 0; // shift amount
-        aluc = 4'b0_001; // left shift
+        alu_op = 4'b0_001; // left shift
         
         // Check the output is unshifted
         #1 assert (r == 32'h0000_0f00)
@@ -108,7 +108,7 @@ module alu_tb();
     
         // Now set the right shift input and chek result
         b = 8;
-        aluc = 4'b0_101;
+        alu_op = 4'b0_101;
         #1 assert (r == 32'h0000_000f)
             else $error("wrong after left shift by 8");       
         #1 assert (zero == 0)
@@ -117,7 +117,7 @@ module alu_tb();
         // Check a logical right shift
         a = 32'h8000_0000;
         b = 3;
-        aluc = 4'b0_101;
+        alu_op = 4'b0_101;
         #1 assert (r == 32'h1000_0000)
             else $error("wrong after logical right shift by 3");  
         #1 assert (zero == 0)
@@ -126,7 +126,7 @@ module alu_tb();
         // Check an arithmetic right shift         
         a = 32'h8000_0000;
         b = 3;
-        aluc = 4'b1_101;
+        alu_op = 4'b1_101;
         #1 assert (r == 32'hf000_0000)
             else $error("wrong after arithmetic right shift by 3");  
         #1 assert (zero == 0)

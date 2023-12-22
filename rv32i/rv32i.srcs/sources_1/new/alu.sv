@@ -5,7 +5,7 @@
 ///
 /// This is a purely combinational ALU implementation.
 ///
-/// The operation depends on the 4-bit aluc as
+/// The operation depends on the 4-bit alu_op as
 /// follows: 
 ///
 /// 0_000: r = a + b
@@ -19,7 +19,7 @@
 /// x_110: r = a | b
 /// x_111: r = a & b
 ///
-/// The separation in aluc indicates that the top bit
+/// The separation in alu_op indicates that the top bit
 /// comes form bit 30 of the instruction, and the bottom
 /// 3 bits come from funct3, in R-type register-register
 /// instructions.
@@ -34,19 +34,18 @@
 module alu(
     input [31:0] a, // First 32-bit operand
     input [31:0] b, // Second 32-bit operand
-    input [3:0] aluc, // ALU control signals (see comments above)
+    input [3:0] alu_op, // ALU control signals (see comments above)
     output reg [31:0] r, // 32-bit result
     output zero // 1 if r is zero, 0 otherwise
-    );
-    
+    );    
     assign zero = ~|r;
     
     wire [31:0] r_shift;
     wire right_shift;
     wire arith_right_shift;
     wire [4:0] shamt;
-    assign right_shift = (aluc[2:0] == 3'b101);
-    assign arith_right_shift = (aluc[3] == 1);
+    assign right_shift = (alu_op[2:0] == 3'b101);
+    assign arith_right_shift = (alu_op[3] == 1);
     assign shamt = b[4:0];
     
     shift shift_0(
@@ -61,8 +60,8 @@ module alu(
     /// recommended by Xilinx for optimal use of DSP blocks.
     /// To fix.
     always @* begin
-        case (aluc[2:0])
-            3'b000: r = aluc[3] ? a - b : a + b;
+        case (alu_op[2:0])
+            3'b000: r = alu_op[3] ? a - b : a + b;
             3'b001, 3'b101: r = r_shift;
             3'b010: r = a < b ? 1 : 0;
             3'b011: r = $signed(a) < $signed(b) ? 1 : 0;
