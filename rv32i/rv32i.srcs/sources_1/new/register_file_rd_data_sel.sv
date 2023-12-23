@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 /// Write data for rd in register file
 ///
 /// The sel arguments selects between the inputs (sel is in binary):
@@ -15,3 +17,5 @@ module register_file_rd_data_sel(
   input [31:0] pc_plus_4, // current pc + 4, from next_pc_sel
   output       rd_data // output data for writing to register rd
   );
+
+endmodule

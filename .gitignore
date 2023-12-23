@@ -12,8 +12,9 @@
 .Xil
 *.tmp
 
-# Emacs autosaves
+# Emacs autosaves/other
 *~
+.emacs
 
 # Asciidoc generated outputs
 *.pdf

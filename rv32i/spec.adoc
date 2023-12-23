@@ -20,7 +20,7 @@ The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specifi
 * `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
 * `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
 
-The external interrupt bit `meie` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
+The external interrupt bit `meip` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
 
 == CPU State
 

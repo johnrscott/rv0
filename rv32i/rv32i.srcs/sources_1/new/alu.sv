@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 
-
 /// Arithmetic Control Unit
 ///
 /// This is a purely combinational ALU implementation.

@@ -179,21 +179,77 @@ Note that many of these steps also happen for an `interrupt` (they are generic t
 
 === `pc` (sequential)
 
-The current `pc` is a single 32-bit register, which is loaded on the rising edge of the clock from the output of `next_pc`.
+The current `pc` is a single 32-bit register, which is loaded on the rising edge of the clock. The next program counter is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
+
+* `A = pc`, `B = 4`: most instructions
+* `A = pc`, `B = offset`: control flow instructions; `offset` is
+** obtained from sign extending `imm` fields in instruction (branch instructions)
+** output from `main_alu` for `jal`
+* `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
+* `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
+* `next_pc = mepc`: `mret` instruction only
+
+The output from this adder is checked for instruction alignment (multiple of 4). If the `pc` is not four-byte aligned, an `InstructionAddressMisaligned` exception is raised.
+
+The module that manages the program counter has the following signature:
 
 [,verilog]
 ----
-reg [31:0] pc;
-wire [31:0] next_pc; // output from next_pc instance
-
-always @(posedge clk) begin
-	pc <= next_pc
-end
+/// Program counter
+///
+/// The program counter is updated on the rising edge
+/// of the clock, and is the main sequential element
+/// that controls the rest of the combinational
+/// computations in the data path.
+///
+/// On the rising edge of the clock, pc is set to next_pc.
+/// The calculation of next_pc is described below.
+///
+/// The control signal sel sets the calculation of
+/// maybe_next_pc as follows:
+///
+/// 00: pc + 4
+/// 01: mepc
+/// 10: 32'hffff_fffe & main_alu_r
+/// 11: pc + offset
+///
+/// The control line trap decides whether maybe_next_pc
+/// becomes the next_pc or not:
+///
+///                       trap
+///                        |
+/// maybe_next_pc -------- 
+///                       MUX ----- next_pc
+/// trap_pc --------------
+///
+/// where trap_pc = exception_vector + interrupt_offset
+/// 
+/// If the maybe_next_pc is not a multiple of 4 when adding
+/// offset or using jalr_target (i.e. pc_src 01 or
+/// 10), then InstructionAddressMisaligned exception
+/// is raised (indicated by instr_addr_mis set). This should
+/// cause an external control system to set trap. It is
+/// important that the instr_addr_mis signal continues to
+/// be asserted even after trap is set, which is why
+/// maybe_next_pc is separate from next_pc (this allows 
+/// a fully combinational single-cycle design).
+///
+module pc(
+        input clk, // the clock (pc updates on rising edge)	
+	input [1:0] sel, // select the next pc for normal program flow
+	input [31:0] mepc, // the pc to use for mret
+	input [31:0] exception_vector, // from mtvec
+	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
+	input [31:0] offset, // offset to add to the current pc
+	input [31:0] main_alu_r, // un-masked jalr target PC
+	input trap, // 0 for normal program flow, 1 for trap
+	output [31:0] pc, // the current program counter
+	output [31:0] pc_plus_4, // the current program counter + 4
+	output instr_addr_mis, // flag for instruction address misaligned exception
+	);
 ----
 
-No check is performed for address alignment, because that is checked in `next_pc`.
-
-### Instruction fetch at `pc` (combinational)
+=== Instruction fetch at `pc` (combinational)
 
 The instruction memory is an instance of a `instr_mem` module, which has the following signature:
 
@@ -468,9 +524,9 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// the next_pc_sel multiplexer to set the return address.)
 ///
 module trap_ctrl(
-	clk, // clock for updating registers
+       	input clk, // clock for updating registers
 	
-	input meie, // external interrupt source (from PLIC)
+	input meip, // external interrupt source (from PLIC)
 	input mret, // set to perform a return from trap
 	input exception, // has an exception been raised
 	input [31:0] mcause, // the cause of the exception
@@ -624,6 +680,8 @@ Some signals do not require multiplexers, because they are always taken from the
 * `register_file_rs2` is always tied to the `rs2` field of the instructions (`instr[24:20]`)
 * `register_file_rd` is always tied to the `rd` field of the instructions (`instr[11:7]`)
 * the CSR-bus address is always routed from the `csr` field in the CSR instruction format (`instr[31:20]`)
+* the data memory bus address always comes from the main ALU output (only used in load/store instructions)
+* the data memory bus write data always comes from the `rs2_data` read port of the register file.
 
 It does not matter if these fields are not used in the instruction, and therefore contains junk; in these cases, `register_file_write_en` is de-asserted, and the combinational outputs `rs1_data` and `rs2_data` are ignored.
 
@@ -653,22 +711,17 @@ The signatures for the two ALU input multiplexers are as follows. The first port
 /// Selects the signal input for port a of the main ALU
 ///
 /// The sel argument selects between the inputs (sel is in binary):
-///  000: rs1_data, for register-register, register-immediate,
+///  00: rs1_data, for register-register, register-immediate,
 ///  branch, load, store instructions
-///  001: pc, for auipc and jal instructions
-///  010: 0, for lui
-///  011: !rs1_data, for use in CSR instructions
-///  100: uimm, for use in CSR instructions
-///  101: !uimm, for use in CSR instructions
-///
-/// When uimm is negated, the negation happens _before_ the 
-/// sign-extension to 32-bits.
+///  01: pc, for auipc and jal instructions
+///  10: 0, for lui
+///  11: csr_rdata, for CSR instructions 
 ///
 module main_alu_a_sel(
-	input [2:0] sel, // chooses the output signal
+	input [1:0] sel, // chooses the output signal
 	input [31:0] rs1_data, // the value of rs1 from the register file
 	input [31:0] pc, // for current program counter
-	input [4:0] uimm, // uimm field from CSR instructions
+	input [31:0] csr_rdata, // CSR-bus read data
 	output a // the main ALU a signal
 	);
 ----
@@ -680,17 +733,21 @@ The second port is controlled by:
 /// Selects the signal input for port b of the main ALU
 ///
 /// The sel argument selects between the inputs (sel is in binary):
-///  00: rs2_data, for register-register, branch instructions
-///  01: imm, for register-immediate, load, store, jal, jalr, 
-///  10: csr_read_data, for CSR instructions 
+///  000: rs2_data, for register-register, branch instructions
+///  001: imm, for register-immediate, load, store, jal, jalr, 
+///  010: rs1_data, for csrrs
+///  011: !rs1_data, for csrrc
+///  100: { 27'b0, imm[4:0] }, for csrrsi
+///  101: { 27'b0, !imm[4:0] }, for csrrci
 ///
 /// The imm argument above needs generating according to whichever
 /// instruction is being implemented; different instructions have
 /// different formats for the immediate, and need it to be processsed
-/// in different ways. The imm argument will be passed straight
-/// through to b unprocessed.
+/// in different ways.
+///
 module main_alu_b_sel(
-	input [1:0] sel, // chooses the output signal
+	input [2:0] sel, // chooses the output signal
+	input [31:0] rs1_data, // the value of rs1 from the register file
 	input [31:0] rs2_data, // the value of rs2 from the register file
 	input [31:0] imm, // immediate field, already extracted/sign-extended
 	output b // the main ALU b signal
@@ -722,69 +779,6 @@ module register_file_rd_data_sel(
 	);
 ----
 
-=== Next program counter
-
-The next program counter `next_pc` is either calculated directly, or is the output from an ALU, configured as an adder, whose input `B` is controlled by a multiplexer. The configuration of the calculation is as follows:
-
-* `A = pc`, `B = 4`: most instructions
-* `A = pc`, `B = offset`: control flow instructions; `offset` is
-** obtained from sign extending `imm` fields in instruction (branch instructions)
-** output from `main_alu` for `jal`
-* `A = exception_vector`, `B = interrupt_offset`: for exceptions and interrupts
-* `next_pc = 0xffff_fffe & jalr_target`: for `jalr` instructions, `jalr_target` is the output from `main_alu`. It needs the bottom bit masking out.
-* `next_pc = mepc`: `mret` instruction only
-
-The output from this adder is checked for instruction alignment (multiple of 4). If the `pc` is not four-byte aligned, an `InstructionAddressMisaligned` exception is raised.
-
-The module that will calculate the `pc` is called `next_pc`, and has the following signature:
-
-[,verilog]
-----
-/// Combinational module to calculate the next value of
-/// the program counter. The control signal sel sets
-/// the calculation of maybe_next_pc as follows:
-///
-/// 00: pc + 4
-/// 01: mepc
-/// 10: 32'hffff_fffe & jalr_target
-/// 11: pc + offset
-///
-/// The control line trap decides whether maybe_next_pc
-/// becomes the next_pc or not:
-///
-///                       trap
-///                        |
-/// maybe_next_pc -------- 
-///                       MUX ----- next_pc
-/// trap_pc --------------
-///
-/// where trap_pc = exception_vector + interrupt_offset
-/// 
-/// If the maybe_next_pc is not a multiple of 4 when adding
-/// offset or using jalr_target (i.e. pc_src 01 or
-/// 10), then InstructionAddressMisaligned exception
-/// is raised (indicated by instr_addr_mis set). This should
-/// cause an external control system to set trap. It is
-/// important that the instr_addr_mis signal continues to
-/// be asserted even after trap is set, which is why
-/// maybe_next_pc is separate from next_pc (this allows 
-/// a fully combinational single-cycle design).
-///
-module next_pc_sel(
-	input [1:0] sel, // select the next pc for normal program flow
-	input [31:0] pc, // the current value of the PC
-	input [31:0] mepc, // the pc to use for mret
-	input [31:0] exception_vector, // from mtvec
-	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
-	input [31:0] offset, // offset to add to the current pc
-	input [31:0] jalr_target, // un-masked jalr target PC
-	input trap, // 0 for normal program flow, 1 for trap
-	output [31:0] pc_plus_4, // this signal is written to rd for jal/jalr
-	output [31:0] next_pc, // the next value to load into pc
-	output instr_addr_mis, // flag for instruction address misaligned exception
-	);
-----
-
 === Immediate generation for ALU operand `b`
 
 Immediates are used in the following types of instructions: register-immediate, upper-immediate, load/store, jal.  The `uimm` field in CSR instructions is also excluded because that is routed to the main ALU operand `a`. The signature for the immediate generation is:
@@ -801,40 +795,24 @@ Immediates are used in the following types of instructions: register-immediate, 
 /// The sel input is used to pick the output immediate
 /// as follows:
 ///
-/// 00: { 20{instr[31]}, instr[31:20] }
+/// 000: { 20{instr[31]}, instr[31:20] }
 /// for register-immediates, loads, stores, jalr
 ///
-/// 01: { instr[24:20] }
+/// 001: { 27'b0, instr[24:20] }
 /// for register-immediate shift instructions
 ///
-/// 10: { instr[31:12], 12'b0 }
+/// 010: { instr[31:12], 12'b0 }
 /// for upper-immediate instructions
 ///
-/// 11: { 12{instr[31]}, instr[19:12], instr[20], instr[30:21], 1'b0 }
+/// 011: { 12{instr[31]}, instr[19:12], instr[20], instr[30:21], 1'b0 }
 /// for jal instruction
 ///
+/// 100: { 27'b0, instr[19:15] }
+/// uimm, for CSR instructions
+///
 module main_alu_b_imm_sel(
-       input [1:0] sel, // pick immediate calculation
+       input [2:0] sel, // pick immediate calculation
        input [31:0] instr, // fetched instruction
        output [31:0] imm // output 32-bit immediate for calculation
        );
-----
-
-=== Immediate generation for `next_pc_sel`
-
-This module generates the `offset` and `jalr_target` inputs for the `next_pc_sel` module, which is required by jump and conditional branch control flow instructions. The signature is as follows:
-
-[,verilog]
-----
-/// Control flow offsets/targets
-///
-/// This module extracts the immediate fields used in jal/jalr
-/// and conditional branch instructions. 
-module control_flow_imm_gen(
-
-
-       );
-
-
-
 ----

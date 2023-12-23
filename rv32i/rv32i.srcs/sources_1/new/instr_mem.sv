@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 /// Fetch an instruction from program memory
 ///
 /// The instruction memory is preloaded with instructions at
@@ -18,3 +20,4 @@ module instr_mem(
   output 	instr_access_fault // flag for instruction access fault exception
   );
    
+endmodule

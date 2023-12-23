@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 /// Trap control (interrupts and exceptions)
 ///
 /// This module holds the following status of the core:
@@ -91,9 +93,9 @@
 /// the next_pc_sel multiplexer to set the return address.)
 ///
 module trap_ctrl(
-  clk, // clock for updating registers
+  input clk, // clock for updating registers
   
-  input 	meie, // external interrupt source (from PLIC)
+  input 	meip, // external interrupt source (from PLIC)
   input 	mret, // set to perform a return from trap
   input 	exception, // has an exception been raised
   input [31:0] 	mcause, // the cause of the exception
@@ -120,7 +122,7 @@ module trap_ctrl(
   input 	csr_write_en, // 1 to write on rising clock edge
   output 	csr_rdata, // CSR read data
   output 	csr_claim, // 1 if this module owns the CSR addr
-  output 	illegal_instr, // 1 if illegal instruction should be raised
+  output 	illegal_instr // 1 if illegal instruction should be raised
   );
 
 endmodule
