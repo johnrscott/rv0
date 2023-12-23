@@ -802,13 +802,17 @@ Immediates are used in the following types of instructions: register-immediate, 
 /// as follows:
 ///
 /// 00: { 20{instr[31]}, instr[31:20] }
-/// for register-immediates, loads, stores
-/// 
-/// 01: { instr[31:12], 12'b0 }
+/// for register-immediates, loads, stores, jalr
+///
+/// 01: { instr[24:20] }
+/// for register-immediate shift instructions
+///
+/// 10: { instr[31:12], 12'b0 }
 /// for upper-immediate instructions
 ///
-/// 10: {}
+/// 11: { 12{instr[31]}, instr[19:12], instr[20], instr[30:21], 1'b0 }
 /// for jal instruction
+///
 module main_alu_b_imm_sel(
        input [1:0] sel, // pick immediate calculation
        input [31:0] instr, // fetched instruction
