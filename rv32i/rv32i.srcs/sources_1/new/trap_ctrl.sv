@@ -93,7 +93,7 @@
 /// the next_pc_sel multiplexer to set the return address.)
 ///
 module trap_ctrl(
-  input clk, // clock for updating registers
+  input 	clk, // clock for updating registers
   
   input 	meip, // external interrupt source (from PLIC)
   input 	mret, // set to perform a return from trap
@@ -120,7 +120,7 @@ module trap_ctrl(
   input [11:0] 	csr_addr, // CSR address. Used to claim a CSR read/write.
   input [31:0] 	csr_wdata, // data to write to the CSR
   input 	csr_write_en, // 1 to write on rising clock edge
-  output 	csr_rdata, // CSR read data
+  output [31:0] csr_rdata, // CSR read data
   output 	csr_claim, // 1 if this module owns the CSR addr
   output 	illegal_instr // 1 if illegal instruction should be raised
   );

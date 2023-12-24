@@ -20,7 +20,7 @@ module main_alu_b_sel(
 	input [31:0] rs1_data, // the value of rs1 from the register file
 	input [31:0] rs2_data, // the value of rs2 from the register file
 	input [31:0] imm, // immediate field, already extracted/sign-extended
-	output b // the main ALU b signal
+	output [31:0] b // the main ALU b signal
 	);
 
 endmodule

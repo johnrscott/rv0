@@ -396,6 +396,8 @@ Devices that are needed on the bus include:
 * `mtimecmp`: memory-mapped register, claims reads/writes in the range `0x1000_4000 - 0x1000_4008`.
 * `mtime`: memory-mapped register, claims reads/writes in the range `0x1000_bff8 - 0x1000_c000`. Automatically increment on each clock cycle.
 
+
+
 === Control and Status Register Bus
 
 The CSR registers are attached to an address space which is different from the data memory physical address space, but which can be implemented in the same way. Each CSR is represented as a device attached to the bus (similar CSRs can be grouped into a single module), with the following signature:
@@ -779,6 +781,30 @@ module register_file_rd_data_sel(
 	);
 ----
 
+=== Trap controller CSR write data
+
+For CSR instructions, the data written back to the CSR comes from either `rs1_data`, the main ALU output, or the `uimm` field of the instruction. The module deciding which to use is:
+
+[,verilog]
+----
+/// Trap controller CSR write data source selection
+///
+/// Depending on the value of sel, the CSR write data
+/// source is chosen as follows:
+/// 00: rs1_data, for csrrw
+/// 01: main_alu_r, for csrrs, csrrc, csrrsi, csrrci
+/// 10: { 27'b0, uimm }, for csrrwi
+///
+module trap_ctrl_csr_wdata_sel(
+       input sel,
+       input [31:0] rs1_data,
+       input [31:0] main_alu_r,
+       input [4:0] uimm,
+       output [31:0] csr_wdata
+       );
+----
+
+
 === Immediate generation for ALU operand `b`
 
 Immediates are used in the following types of instructions: register-immediate, upper-immediate, load/store, jal.  The `uimm` field in CSR instructions is also excluded because that is routed to the main ALU operand `a`. The signature for the immediate generation is:
@@ -814,5 +840,21 @@ module main_alu_b_imm_sel(
        input [2:0] sel, // pick immediate calculation
        input [31:0] instr, // fetched instruction
        output [31:0] imm // output 32-bit immediate for calculation
+       );
+----
+
+=== Immediate generation for branch offset
+
+For conditional branch instructions, this module generates the `offset` field for inputting into the `pc` module:
+
+[,verilog]
+----
+/// Extract and sign-extend the offset field from B-type
+/// instructions:
+///
+/// offset = { 20{instr[12]}, instr[7], instr[30:25], instr[11:8], 1'b0 }
+module branch_offset_imm_gen(
+       input [31:0] instr,
+       output [31:0] offset,
        );
 ----

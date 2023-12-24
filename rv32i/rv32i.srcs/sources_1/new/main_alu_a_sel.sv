@@ -14,7 +14,7 @@ module main_alu_a_sel(
 	input [31:0] rs1_data, // the value of rs1 from the register file
 	input [31:0] pc, // for current program counter
 	input [31:0] csr_rdata, // CSR-bus read data
-	output a // the main ALU a signal
+	output [31:0] a // the main ALU a signal
 	);
 	
 endmodule
