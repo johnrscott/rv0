@@ -12,53 +12,15 @@ Other non-ISA specifications are also used. References to the Platform-Level Int
 
 * `plic_f1` means RISC-V PLIC specification, figure 1
 
-== Interrupts
-
-The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specification, based on SiFive chips. The CLINT memory map begins at address `0x1000_0000`. The meaning of the memory-mapped I/O registers in this region are as follows:
-
-* `msip`: write 1 to this bit to request a software interrupt, and write 0 to clear it. The value of this bit is reflected in the read-only `MSIP` field of the `mip` CSR. The register is initialised to zero.
-* `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
-* `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
-
-The external interrupt bit `meip` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
-
 == CPU State
 
-This section contains the parts of the design that hold state, which will correspond to registered parts of the design. 
+The registers required by the RISC-V implementation are summarised in this section. The register file contains 32 registers which are each 32 bits wide, called `x0`-`x31`. The first register `x0` is writable, but always returns zero when read. The program counter is 32 bits wide, and is initialised to the reset vector.
 
-The device will need a register file of 32 32-bit registers, where x0 (the first one) is tied to zero (always reads as zero).
+=== Control and Status Registers
 
-There is a 32-bit program counter which points to the instruction currently executing.
+A certain minimal set of control and status registers (CSRs) are required by the RISC-V privileged specification. Each is listed in the format "`CSR-address CSR-name`: description" below.
 
-There will be a byte-addressable 32-bit physical address space (for use by the load and store instructions) backed by 
-
-* a region of read/write I/O region (containing memory-mapped registers)
-* a region of read/write main memory (RAM)
-
-(The instruction memory will be separate from the other memory in this design, and will only be accessed by instruction fetch. Since instruction memory will not be writable, it will be implemented as a combinational instance, loaded with initial values at synthesis-time.)
-
-The memory map for the physical address space is as follows (all addresses are in hexadecimal):
-
-[cols="1,1,1,1,1"]
-|===
-| Memory Name     | Start Address | Memory-mapped Register    | Size | Physical Memory Attributes   
-| Instruction ROM | 0000\_0000    |                           | 1024 | Read-only (instruction fetch)
-|                 | 0000\_0000    | Reset vector (initial PC) | 4    |                              
-|                 | 0000\_0004    | NMI vector                | 4    |                              
-|                 | 0000\_0008    | Exception vector (mtvec)  | 4    |                              
-|                 | 0000\_0014    | Software interrupt vector | 4    |                              
-|                 | 0000\_0024    | Timer interrupt vector    | 4    |                              
-|                 | 0000\_0034    | External interrupt vector | 4    |                              
-| I/O             | 1000\_0000    |                           |      | Read/write (load/store)      
-|                 | 1000\_0000    | msip                      | 4    |                              
-|                 | 1000\_4000    | mtimecmp                  | 8    |                              
-|                 | 1000\_bff8    | mtime                     | 8    |                              
-| Main Memory     | 2000\_0000    |                           | 1024 | Read/write (load/store)
-|===
-
-There are the following minimal set of required control and status registers (CSR). Each is listed in the format "`CSR-address CSR-name`: description". 
-
-First, there is a set of required informational registers:
+The following informational registers are required to be present, but can be read-only zero:
 
 * `0xf11 mvendorid`: read-only; returns 0 to indicate not implemented.
 * `0xf12 marchid`: read-only; returns 0 to indicate not implemented.
@@ -67,7 +29,7 @@ First, there is a set of required informational registers:
 * `0xf15 mconfigptr`: read-only zero, configuration platform-specification defined
 * `0x301 misa`: read/write; single legal value 0 always returned (WARL), meaning architecture is determined by non-standard means (it is rv32im_zicsr implementing M-mode only).
 
-The state of the CPU is stored in the following status registers:
+The status of the CPU is stored in the following status registers:
 
 * `0x300 mstatus`: read/write, containing both WPRI and WARL fields. The bit fields which are non-zero are as follows (assumes only M-mode):
 ** bit 3: MIE (interrupt enable), read/write
@@ -84,7 +46,7 @@ In addition to the global bit in the status register, interrupts are controlled 
 ** bit 7: machine timer interrupt pending (read-only)
 ** bit 11: machine-level external interrupt pending (read-only)
 
-When a trap occurs (either due to an imprecise asynchronous interrupt or a precise synchronous exception), the following registers control where control flow is transferred to and where it returns to after the trap:
+When a trap occurs (either due to an interrupt or a exception), the following registers determine where control flow is transferred to and where it returns to after the trap:
 
 * `0x305 mtvec`: read-only, trap handler vector table base address
 ** bits [1:0]: 1 (vectored mode)
@@ -107,7 +69,7 @@ The following privileged-mode registers hold performance monitoring information:
 * `0xb02 minstret`: low 32 bits of read/write, 64-bit register containing number of instructions retired by the processor.
 * `0xb82 minstreth`: high 64 bits of read/write, 64-bit register containing number of instructions retired by the processor.
 
-These registers are also accessible via the following shadows (intended for use by unprivileged mode; however, there is only M-mode here, so there is no distinction between privilege levels)
+These registers are also accessible via the following shadows (intended for use by unprivileged mode; however, there is only M-mode here, so there is no distinction between privilege levels):
 
 * `0bc00 cycle`: read-only shadow of mcycle
 * `0xc80 cycleh`: read-only shadow of mcycleh
@@ -127,11 +89,134 @@ Finally, the following required performance monitoring counters are all implemen
 * `(0xc00 + n) hpmcountern`:  read-only zero (`n` ranges from 3 to 32)
 * `(0xc80 + n) hpmcounternh`: read-only zero (`n` ranges from 3 to 32)
 
+== Traps
+
+The standard privileged architecture requires support for exceptions and interrupts.
+
+At the start of each instruction cycle, a trap is triggered transferring control to an interrupt vector, if both (`v2_s3.1.9`):
+
+* Interrupts are globally enabled (`MIE` bit set in `mstatus`)
+* An interrupt enable bit (`mie`) and corresponding interrupt pending bit (`mip`) are both set
+
+While an instruction is in execution, if it raises an exception, a trap is triggered transferring control to the exception vector.
+
+The process of triggering a trap takes one cycle, and is the same for both an exception and an interrupt:
+
+* The `mepc` CSR is set to the current program counter (instruction interrupted or raising the exception) (`v2_s3.1.14`)
+* The program counter is set to a trap vector. For exceptions, this is the `base` address in `mtvec` (`v2_s3.1.7`). For interrupts, it is `base + 4*cause`, where `cause` is from the exception code column in `v2_t3.6`. (This design uses vectored interrupts.)
+* The `mcause` CSR is set to the exception code in `v2_t3.6`. The interrupt bit is set for an interrupt (`v2_s3.1.15`).
+* The `MIE` bit in `mstatus` is copied to `MPIE`, and the `MIE` bit is set to 0 (`v2_s3.1.6.1`)
+
+
+
+
+=== Interrupts
+
+The basic interrupt mechanism follows the Core Local Interruptor (CLINT) specification, based on SiFive chips. The CLINT memory map begins at address `0x1000_0000`. The meaning of the memory-mapped I/O registers in this region are as follows:
+
+* `msip`: write 1 to this bit to request a software interrupt, and write 0 to clear it. The value of this bit is reflected in the read-only `MSIP` field of the `mip` CSR. The register is initialised to zero.
+* `mtimecmp`: this is the 64-bit timer compare register as described in the RISC-V privileged ISA specification. A timer interrupt becomes pending exactly when `mtime >= mtimecmp`. It is initialised to zero.
+* `mtime`: this is the 64-bit real time register, which increments at a constant rate with wall clock time. It is initialised to zero.
+
+The external interrupt bit `meip` in `mip` (the interrupt-pending register) comes directly from an external interrupt controller which follows the PLIC specification (`plic_f1`). There is only a single hart in this system, which only implements M-mode, therefore there is only one signal line from the PLIC to the hart (the M-mode external interrupt signal; see `plic_s1.3`).
+
+=== Exceptions
+
+When an instruction is executed, it may synchronously raise an exception (meaning the exception is associated with the instruction being executed, and raising the exception will deterministically trigger a trap on the next instruction). The following subset of exceptions defined in `v2_t3.6` is implemented in the design:
+
+.Supported exceptions
+[#exceptions, cols="1,1,1"]
+|===
+| Exception code | Exception | Caused by
+
+| 0 | Instruction address misaligned | Program counter not four-byte-aligned on an unconditional jump or branch taken (`v2_s2.2`). Exception is raised on the jump/branch instruction itself.
+| 1 | Instruction access fault | Program counter does not fall within the instruction memory address region. Exception raised on the instruction with invalid program counter.
+| 2 | Illegal instruction | The fetched instruction is not supported by this implementation (i.e. is not RV32I, Zicsr, `mret` or `wfi`).
+| 3 | Breakpoint | The `ebreak` instruction was executed
+| 5 | Load access fault | a load instruction was executed with an address which is not in main memory or an I/O region 
+| 7 | Store access fault | a store instruction was executed with an address which is not in main memory or an I/O region, or the address is read-only
+| 11 | (M-mode) Environment call | The `ecall` instruction was executed
+|===
+
+In this implementation, load/store instructions do not have alignment requirements, so the load/store address misaligned exceptions are not required.
+
+
+== Memory Map
+
+The memory map for the physical address space is as follows (all addresses are in hexadecimal):
+
+.Memory regions
+[#mem-regions, cols="1,1,1,1,1"]
+|===
+| Memory Region   | Address range         | Size                 | Physical Memory Attributes | Notes
+
+| Instruction ROM | 0000_0000 - 1000_0000 | 1024                 | Instruction fetch only     |
+| I/O             | 1000_0000 - 2000_0000 | Sum of special register sizes   | Read/write (load/store)    | See <<special-io-regs>> below
+| Main Memory     | 2000_0000 - 2000_0400 | 1024                 | Read/write (load/store)    | 
+|===
+
+The addresses in the I/O region are vacant by default (load/store accesses generate an illegal instruction exception). The accessible addresses are given below:
+
+.Special registers in I/O memory
+[#special-io-regs, cols="1,1,1,1"]
+|===
+| Address    | Register name             | Register size | Attributes
+
+| 1000_0000    | msip                      | 4           | Read/write, but only bit 0 is modified     
+| 1000_4000    | mtimecmp                  | 8           | Read/write (`v2_s3.2.1`)                     
+| 1000_bff8    | mtime                     | 8           | Read/write (`v2_s3.2.1`)                  
+|===
+
+Certain addresses in the instruction memory region have the following defined purposes:
+
+.Special vectors in instruction memory
+[#special-instr-vectors, cols="1,1,1"]
+|===
+| Start Address | Memory-mapped Register    | Size
+
+| 0000_0000    | Reset vector (initial PC) | 4                                  
+| 0000_0004    | NMI vector                | 4                                  
+| 0000_0008    | Exception vector (mtvec)  | 4                                  
+| 0000_0014    | Software interrupt vector | 4                                  
+| 0000_0024    | Timer interrupt vector    | 4                                  
+| 0000_0034    | External interrupt vector | 4                                  
+|===
+
 == Instructions
 
-The required instructions are the 32-bit base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instruction `mret`.
+The required instructions are the 32-bit RV32I base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instructions `mret` and `wfi`. Each category of instructions is defined below
 
-=== Control and status register (CSR) instructions
+=== Privileged Instructions
+
+The following instructions are required for code executing in machine mode (the only privilege level in this design) (`v2_s3.3`): `ecall`, `ebreak`, `mret`, and `wfi`.
+
+The `ecall` and `ebreak` instructions are required by the unprivileged specification RV32I (`v1_s2.8`). Since the unprivileged instructions are also executing in M-mode in this design, these `ecall` and `ebreak` instructions do the same thing as the M-mode versions.
+
+The instructions `ecall` and `ebreak` raise the exceptions shown in <<exceptions>>, and take no further action.
+
+The instruction `mret` is executed by software to return from a trap. It performs the following steps:
+
+* Copies the `MPIE` bit to `MIE` in `mstatus`
+* Sets the `MPIE` to 1
+* Sets the program counter to `mepc` (`v2_s3.3.2`)
+
+The `wfi` is implemented as a NOP (`v2_s3.3.3`)
+
+=== Upper Immediate (RV32I)
+
+=== Register-Register (RV32I)
+
+=== Register-Immediate (RV32I)
+
+=== Unconditional Jump (RV32I)
+
+=== Conditional Branch (RV32I)
+
+=== Load (RV32I)
+
+=== Store (RV32I)
+
+=== Control and Status Register (Zicsr)
 
 The unprivileged specification (`v1_ch9`) defines the behaviour of the instructions which manipulate CSRs, in the Zicsr ISA extension. The behaviour of the instructions is as follows:
 
