@@ -185,6 +185,8 @@ Unless otherwise specified, all programs are assumed to increment the program co
 
 Many instructions involve building an immediate from instruction fields. The clearest diagram of how to build immediates for most instruction formats is `v1_f2.4`. Most immediates are sign-extended based on bit 31 of the instruction. The CSR instructions are an exception, which use the `rs2` field as an unsigned immediate (not sign extended). Normally, the (resulting 32-bit) immediate is used as an operand to an addition, or is written directly to a register.
 
+NOTE: Whenever calculations below involve `rs1`, `rs2`, or `rd`, the calculation involves the value in the indexed register, not the register index itself.
+
 === Privileged Instructions
 
 The following instructions are required for code executing in machine mode (the only privilege level in this design) (`v2_s3.3`): `ecall`, `ebreak`, `mret`, and `wfi`.
@@ -230,11 +232,44 @@ No exceptions are raised.
 
 === Unconditional Jump (RV32I)
 
+The `jal` and `jalr` instructions store `pc + 4` in the register `rd`, and unconditionally update the program counter. For both instructions, a signed 32-bit immediate `imm` is encoded in the instruction. (The encoding is different for `jal` and `jalr`.) The new program counter is calculated as follows:
+
+* For `jal`, `pc = pc + imm` 
+* For `jalr`, `pc = 0xffff_fffe & (rs1 + imm)`
+
+If the new `pc` is not four-byte aligned, an instruction address misaligned exception is raised (and the program counter is not updated).
+
 === Conditional Branch (RV32I)
+
+The conditional branch instructions `beq`, `bne`, `blt`, `bge`, `bltu`, and `bgeu`, check a condition between registers `rs1` and `rs2`, and update the program counter if the condition is satisfied.
+
+The new program counter is `pc = pc + imm`, where `imm` is a signed 32-bit immediate encoded in the instruction. If the new `pc` is not four-byte aligned, an instruction misaligned exception is raised (and the program counter is not updated).
+
+If the condition is not satisfied, the program counter  is set to `pc + 4` as normal.
 
 === Load (RV32I)
 
+Load instructions `lb`, `lh`, `lw`, `lbu`, and `lhu`, attempt to read a location in memory and write it to `rd`.
+
+The address for the attempted read is `rs1 + imm`, where `imm` is a signed 32-bit immediate stored in the instruction.
+
+The width of the read is given by the instruction. If the address and width means that a byte falls outside the valid memory region for reading (in main memory or I/O), a load access fault exception is raised, and no registers are modified.
+
+If the read is valid, the 1-byte, 2-byte, or 4-byte result is either sign- or zero-extended, and written to `rd`.
+
+The behaviour of exceptions does not depend on whether `rd` is `x0` (`v1_s2.6`).
+
+NOTE: In this design, all alignments are supported (in both loads and stores), and so load/store misalignment exceptions are not raised.
+
 === Store (RV32I)
+
+Store instructions `sb`, `sh`, and `sw`, attempt to write the contents of `rs2` to a location in memory.
+
+The address for the attempted write is `rs1 + imm`, where `imm` is a signed 32-bit immediate stored in the instruction. (The encoding is not the same as for load instructions.)
+
+The width of the write is given by the instruction. If the address and width means that a byte falls outside the valid memory region for write (in main memory or I/O), a store access fault exception is raised, and no registers are modified.
+
+If the write is valid, the 1-byte, 2-byte, or 4-byte value from the low bits of `rs2` is written to the address.
 
 === Control and Status Register (Zicsr)
 
