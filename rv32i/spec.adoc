@@ -179,7 +179,11 @@ Certain addresses in the instruction memory region have the following defined pu
 
 == Instructions
 
-The required instructions are the 32-bit RV32I base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instructions `mret` and `wfi`. Each category of instructions is defined below
+The required instructions are the 32-bit RV32I base integer ISA, the Zicsr extension for CSR manipulation, and the privileged-architecture instructions `mret` and `wfi`. Each category of instructions is defined below.
+
+Unless otherwise specified, all programs are assumed to increment the program counter by four bytes.
+
+Many instructions involve building an immediate from instruction fields. The clearest diagram of how to build immediates for most instruction formats is `v1_f2.4`. Most immediates are sign-extended based on bit 31 of the instruction. The CSR instructions are an exception, which use the `rs2` field as an unsigned immediate (not sign extended). Normally, the (resulting 32-bit) immediate is used as an operand to an addition, or is written directly to a register.
 
 === Privileged Instructions
 
@@ -199,9 +203,30 @@ The `wfi` is implemented as a NOP (`v2_s3.3.3`)
 
 === Upper Immediate (RV32I)
 
+Upper immediate instructions `lui` and `auipc` use an immediate `imm`, where `imm[31:12]` is stored in the U-type instruction, and `imm[11:0]` is 0. Then:
+
+* `lui` stores `imm` in the register `rd`
+* `auipc` stores `imm + pc` in the register `rd`
+
+No exceptions are raised.
+
 === Register-Register (RV32I)
 
+The instructions `add`, `sub`, `sll`, `slt` `sltu`, `xor`, `srl`, `sra`, `or`, and `and`, all execute in the same way:
+
+* Perform an operation between the two registers `rs1` and `rs2`
+* Store the result to the register `rd`
+
+No exceptions are raised.
+
 === Register-Immediate (RV32I)
+
+The instructions `addi`, `slli`, `slti` `sltiu`, `xori`, `srli`, `srai`, `ori`, and `andi`, all execute in the same way:
+
+* Perform an operation between register `rs1` and the sign-extended immediate `{ 20{instr[31]} , instr[31:20] }`
+* Store the result to the register `rd`
+
+No exceptions are raised.
 
 === Unconditional Jump (RV32I)
 

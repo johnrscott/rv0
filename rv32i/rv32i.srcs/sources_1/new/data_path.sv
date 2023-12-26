@@ -42,17 +42,17 @@ module data_path(
   // Whether to write data back to the register
   // file. This will be overridden if a trap
   // occurs.
-  input 	ctrl_register_file_write_en,
+  input 	register_file_write_en,
   input [1:0] 	register_file_rd_data_sel,
   
   // Whether to write data to the data memory
   // bus (for loads/stores). This will be
   // overridden if a trap occurs.
-  input 	ctrl_data_mem_write_en,
+  input 	data_mem_write_en,
 
   // Whether to write data to the CSR bus.
   // Overridden if a trap occurs.
-  input 	ctrl_csr_write_en,
+  input 	csr_write_en,
 
   // Fetched instruction for use by the
   // control unit.
@@ -119,13 +119,13 @@ module data_path(
    wire [31:0] data_mem_addr;
    //wire [1:0]  data_mem_width;
    wire [31:0] data_mem_wdata;
-   wire        data_mem_write_en;
+   wire        data_mem_write_en_internal;
    wire [31:0] data_mem_rdata;
    wire        data_mem_claim;
    
    assign data_mem_addr = main_alu_r;
    assign data_mem_wdata = rs1_data;
-   assign data_mem_write_en = ctrl_data_mem_write_en & !trap;
+   assign data_mem_write_en_internal = data_mem_write_en & !trap;
    assign data_mem_claim = data_mem_claim_trap_ctrl;
    
    // Load and store access faults are raised if a data
@@ -146,12 +146,12 @@ module data_path(
    // CSR bus
    wire [11:0] csr_addr;
    wire [31:0] csr_wdata;
-   wire        csr_write_en;
+   wire        csr_write_en_internal;
    wire [31:0] csr_rdata;
    wire        csr_claim;
 
    assign csr_addr = instr[31:20];
-   assign csr_write_en = ctrl_csr_write_en & !trap;   
+   assign csr_write_en_internal = csr_write_en & !trap;   
    // Combine outputs from all CSR devices
    assign csr_rdata = csr_rdata_trap_ctrl;
 
@@ -196,7 +196,6 @@ module data_path(
      .exception(exception),
      .mcause(mcause),
      .pc(pc),
-     .pc_plus_4(pc_plus_4),
      .trap(trap),
      .interrupt(interrupt),
      .mepc(mepc),
@@ -207,14 +206,14 @@ module data_path(
      .data_mem_addr(data_mem_addr),
      .data_mem_width(data_mem_width),
      .data_mem_wdata(data_mem_wdata),
-     .data_mem_write_en(data_mem_write_en),
+     .data_mem_write_en(data_mem_write_en_internal),
      .data_mem_rdata(data_mem_rdata_trap_ctrl),
      .data_mem_claim(data_mem_claim_trap_ctrl),
 
      // CSR bus
      .csr_addr(csr_addr),
      .csr_wdata(csr_wdata_trap_ctrl),
-     .csr_write_en(csr_write_en),
+     .csr_write_en(csr_write_en_internal),
      .csr_rdata(csr_rdata_trap_ctrl),
      .csr_claim(csr_claim_trap_ctrl),
      .illegal_instr(illegal_instr_trap_ctrl)
@@ -238,13 +237,13 @@ module data_path(
      );
      
    // Register file
-   assign register_file_write_en = ctrl_register_file_write_en & !trap;
+   assign register_file_write_en_internal = register_file_write_en & !trap;
    register_file register_file_0(
      .rs1(rs1),
      .rs2(rs2),
      .rd_data(rd_data),
      .rd(rd),
-     .write_en(register_file_write_en),
+     .write_en(register_file_write_en_internal),
      .clk(clk),
      .rs1_data(rs1_data),
      .rs2_data(rs2_data)
