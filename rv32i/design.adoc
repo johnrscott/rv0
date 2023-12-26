@@ -1,6 +1,13 @@
 = Design
 
-This file contains the design of the core, including the data path and control. Each part will be broken down into what modules and instances are needed, and how the instructions utilise each part of the design.
+This section contains the design of the data path, the control unit, and other elements of the CPU.
+
+The intention is to create a simple single-cycle design that conforms to the specification outlined above. References for the design include:
+
+* "2018 Patterson and Hennessy - Computer organisation and design: the hardware software interface (RISC-V edition)", which provides an introduction to single-cycle RISC-V CPU design in chapter 4
+* "2015 Li - Computer principles and design in verilog HDL", which provides a survey of practical techniques for programming general RISC CPUs in Verilog.
+
+The design is intended for synthesis on Xilinx FPGAs. As a result, some design decisions are motivated by guidance in, e.g., https://docs.xilinx.com/r/en-US/ug949-vivado-design-methodology:"[Xilinx ultrafast design methodology].
 
 == Data path (instructions)
 
