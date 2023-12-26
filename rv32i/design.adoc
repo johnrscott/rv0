@@ -482,7 +482,6 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// Interrupts in 2) are checked in the order given, and the
 /// first enabled and pending interrupt is the one that traps.
 ///
-/// On an interrupt trap, the mepc is set to current pc + 4.
 /// The mcause register is set to (0x8000_0000 | code), where
 /// code is 3 for software interrupt, 7 for timer interrupt,
 /// or 11 for external interrupt. The interrupt_offset is set
@@ -498,9 +497,9 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// which produces an exception bit and the mcause values.
 /// These are used as input to this module.
 ///
-/// As a result, an exception trap will occur. The mepc is set
-/// to the current pc. The mcause register is set to the value
-/// of the mcause input. The interrupt_offset is set to 0.
+/// As a result, an exception trap will occur. The mcause
+/// register is set to the value of the mcause input. The
+/// interrupt_offset is set to 0.
 ///
 /// On Any Trap
 /// ~~~~~~~~~~~~
@@ -508,7 +507,8 @@ This module is responsible for controlling interrupts and exceptions. It also ho
 /// On any trap (interrupts or exceptions), the mie bit is
 /// copied to mpie in mstatus, and the mie bit is set to zero.
 /// The exception_vector is set to the base address stored in
-/// mtvec (this is hard-coded in this design). 
+/// mtvec (this is hard-coded in this design). The current
+/// program counter is copied to mepc
 ///
 /// Any other instruction that may have executed on this clock
 /// cycle must be disabled. This is achieved by disabling any
@@ -533,7 +533,6 @@ module trap_ctrl(
 	input exception, // has an exception been raised
 	input [31:0] mcause, // the cause of the exception
 	input [31:0] pc, // used for setting mepc on exception
-	input [31:0] pc_plus_4, // used for setting mepc on interrupt
 	
 	output trap, // set if any trap is detected
 	output interrupt, // set if an interrupt is detected

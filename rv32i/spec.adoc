@@ -93,12 +93,10 @@ Finally, the following required performance monitoring counters are all implemen
 
 The standard privileged architecture requires support for exceptions and interrupts.
 
-At the start of each instruction cycle, a trap is triggered transferring control to an interrupt vector, if both (`v2_s3.1.9`):
-
-* Interrupts are globally enabled (`MIE` bit set in `mstatus`)
-* An interrupt enable bit (`mie`) and corresponding interrupt pending bit (`mip`) are both set
-
-While an instruction is in execution, if it raises an exception, a trap is triggered transferring control to the exception vector.
+* At the start of each instruction cycle, a trap is triggered transferring control to an interrupt vector, if both (`v2_s3.1.9`):
+** Interrupts are globally enabled (`MIE` bit set in `mstatus`)
+** An interrupt enable bit (`mie`) and corresponding interrupt pending bit (`mip`) are both set
+* While an instruction is in execution, if it raises an exception, a trap is triggered transferring control to the exception vector.
 
 The process of triggering a trap takes one cycle, and is the same for both an exception and an interrupt:
 
@@ -106,9 +104,6 @@ The process of triggering a trap takes one cycle, and is the same for both an ex
 * The program counter is set to a trap vector. For exceptions, this is the `base` address in `mtvec` (`v2_s3.1.7`). For interrupts, it is `base + 4*cause`, where `cause` is from the exception code column in `v2_t3.6`. (This design uses vectored interrupts.)
 * The `mcause` CSR is set to the exception code in `v2_t3.6`. The interrupt bit is set for an interrupt (`v2_s3.1.15`).
 * The `MIE` bit in `mstatus` is copied to `MPIE`, and the `MIE` bit is set to 0 (`v2_s3.1.6.1`)
-
-
-
 
 === Interrupts
 
