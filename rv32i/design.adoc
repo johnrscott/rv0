@@ -9,7 +9,27 @@ The intention is to create a simple single-cycle design that conforms to the spe
 
 The design is intended for synthesis on Xilinx FPGAs. As a result, some design decisions are motivated by guidance in, e.g., https://docs.xilinx.com/r/en-US/ug949-vivado-design-methodology:"[Xilinx ultrafast design methodology].
 
+== Design Summary
+
+The two main components of this single-cycle design are the data path and the control path:
+
+* The data path is responsible for the bulk of the calculations in each instruction cycle, and also stores the state of the processor (all the registers and memory). The data path is a sequential module, with all registers and memory updated on the rising clock edge. The data path will support all the RV32I and Zicsr instructions outlined in the specification, and has its behaviour controlled by a set of inputs from the control unit. It has the following interface:
+** Inputs: clock, control lines from the control unit (including exception information)
+** Outputs: fetched instruction, flags for when an instruction raises an exception
+* The control unit is a purely combinational module which takes a fetched instruction and decodes it into control lines for the data path. In addition, it reads any exception flags raised by the data path and modifies the control lines to trap the exception if necessary. It has the following interface:
+** Inputs: fetched instruction from the data path, exception flags from the data path
+** Outputs: the control lines for the data path.
+
+In the normal execution of an instruction which does not raise an exception and is not interrupted, the order of operations is as follows:
+
+. The data path contains the program counter, which combinationally fetches an instruction.
+. The fetched instruction is an input to the control unit, which combinationally decodes the instruction and configures the data path control lines
+. The computations involved in executing the instruction in the data path are all combinational, so the result of the computation stabilises at the write inputs to all the registers and memory
+. On the next rising clock edge, the results of the instruction are loaded into registers and memory in the data path
+
 == Data Path
+
+
 
 === Main ALU
 
