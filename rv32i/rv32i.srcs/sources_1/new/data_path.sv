@@ -10,17 +10,16 @@ module data_path(
   /// Whether a return-from-trap
   /// should be performed
   input 	mret,
+
+  /// Immediate generation
+  input 	imm_gen_sel,
   
   /// Set main ALU behaviour
-  input [3:0] 	alu_op,
-  input [1:0] 	main_alu_a_sel,
-  input [2:0] 	main_alu_b_sel,
-  input [2:0] 	main_alu_b_imm_sel,
+  input [2:0] 	alu_arg_sel,
 
   // Signals asserted for specific
   // classes of instructions
   wire 		load_store_instr, csr_instr,
-
   
   // External illegal instruction flag
   // from instruction decoding (control
@@ -68,7 +67,9 @@ module data_path(
    wire [4:0]  uimm;
 
    // Main ALU signals
-   wire [31:0] main_alu_r, a, b, main_alu_b_imm;
+   wire [31:0] main_alu_result, a, b, main_alu_b_imm;
+   wire        main_alu_zero;
+   wire [3:0]  alu_op;
    
    // Register file signals
    wire [31:0] rd_data, rs1_data, rs2_data;
@@ -100,7 +101,7 @@ module data_path(
      .exception_vector(exception_vector),
      .interrupt_offset(interrupt_offset),
      .offset(branch_offset_imm),
-     .main_alu_r(main_alu_r),
+     .main_alu_r(main_alu_result),
      .trap(trap),
      .pc(pc),
      .pc_plus_4(pc_plus_4),
@@ -115,6 +116,8 @@ module data_path(
    assign funct7 = instr[31:25];
    assign uimm = rs1;
 
+   assign alu_op = { instr[30], funct3 };
+   
    // Data memory bus
    wire [31:0] data_mem_addr;
    //wire [1:0]  data_mem_width;
@@ -123,7 +126,7 @@ module data_path(
    wire [31:0] data_mem_rdata;
    wire        data_mem_claim;
    
-   assign data_mem_addr = main_alu_r;
+   assign data_mem_addr = main_alu_result;
    assign data_mem_wdata = rs1_data;
    assign data_mem_write_en_internal = data_mem_write_en & !trap;
    assign data_mem_claim = data_mem_claim_trap_ctrl;
@@ -182,7 +185,7 @@ module data_path(
    trap_ctrl_csr_wdata_sel trap_ctrl_csr_wdata_sel_0(
      .sel(trap_ctrl_csr_wdata_sel),
      .rs1_data(rs1_data),
-     .main_alu_r(main_alu_r),
+     .main_alu_r(main_alu_result),
      .uimm(uimm),
      .csr_wdata(csr_wdata_trap_ctrl)
      );
@@ -229,7 +232,7 @@ module data_path(
    // Pick the source for the register file rd write data
    register_file_rd_data_sel register_file_rd_data_sel_0(
      .sel(register_file_rd_data_sel),
-     .main_alu_r(main_alu_r),
+     .main_alu_r(main_alu_result),
      .data_mem_rdata(data_mem_rdata),
      .csr_rdata(csr_rdata),
      .pc_plus_4(pc_plus_4),
@@ -249,38 +252,24 @@ module data_path(
      .rs2_data(rs2_data)
      );
    
-   // Select first input for main ALU
-   main_alu_a_sel main_alu_a_sel_0 (
-     .sel(main_alu_a_sel),
-     .rs1_data(rs1_data),
-     .pc(pc),
-     .csr_rdata(csr_rdata),
-     .a(a)
-     );
-
-   // Make the immediate input for the main ALU b port
-   main_alu_b_imm_sel main_alu_b_imm_sel_0(
-     .sel(main_alu_b_imm_sel),
+   // Immediate generation for all instruction formats
+   imm_gen imm_gen_0(
+     .sel(imm_gen_sel),
      .instr(instr),
-     .imm(main_alu_b_imm)
-     );
-     
-   // Select second input for main ALU
-   main_alu_b_sel main_alu_b_sel_0 (
-     .sel(main_alu_b_sel),
-     .rs1_data(rs1_data),
-     .rs2_data(rs2_data),
-     .imm(main_alu_b_imm),
-     .b(b)
+     .imm(imm)
      );
      
    // Main arithmetic logic unit
-   alu main_alu(
-     .a(a),
-     .b(b),
+   main_alu_wrapper main_alu_wrapper_0(
+     .arg_sel(alu_arg_sel),
      .alu_op(alu_op),
-     .r(main_alu_r),
-     .zero(zero)
+     .rs1_data(rs1_data),
+     .rs2_data(rs2_data),
+     .imm(imm),
+     .pc(pc),
+     .csr_rdata(csr_rdata),
+     .main_alu_result(main_alu_result),
+     .main_alu_zero(main_alu_zero)
      );
    
 endmodule

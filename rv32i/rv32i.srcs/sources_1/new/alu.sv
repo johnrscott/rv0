@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "opcodes.svh"
+
 /// Arithmetic Control Unit
 ///
 /// This is a purely combinational ALU implementation.
@@ -60,13 +62,13 @@ module alu(
     /// To fix.
     always @* begin
         case (alu_op[2:0])
-            3'b000: r = alu_op[3] ? a - b : a + b;
-            3'b001, 3'b101: r = r_shift;
-            3'b010: r = a < b ? 1 : 0;
-            3'b011: r = $signed(a) < $signed(b) ? 1 : 0;
-            3'b100: r = a ^ b;
-            3'b110: r = a | b;
-            3'b111: r = a & b;
+            FUNCT3_ADD: r = alu_op[3] ? a - b : a + b;
+            FUNCT3_SLL, FUNCT3_SRL: r = r_shift;
+            FUNCT3_SLTU: r = a < b ? 1 : 0;
+            FUNCT3_SLT: r = $signed(a) < $signed(b) ? 1 : 0;
+            FUNCT3_XOR: r = a ^ b;
+            FUNCT3_OR: r = a | b;
+            FUNCT3_AND: r = a & b;
         endcase
     end
     

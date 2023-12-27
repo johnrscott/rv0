@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 /// Extract an immediate encoded in the instruction
 ///
 /// Each RV32I or Zicsr instruction contains at most
@@ -23,7 +25,7 @@ module imm_gen(
   output reg [31:0] imm // Output 32-bit immediate
   );
 
-   always @(*) begin
+   always @* begin
       case(sel)
 	   3'b000: imm = { {21{instr[31]}}, instr[30:20] };
 	   3'b001: imm = { {21{instr[31]}}, {instr[30:25]}, instr[11:7] };

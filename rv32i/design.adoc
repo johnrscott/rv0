@@ -133,7 +133,7 @@ A wrapper module is used to encapsulate the main ALU, and ensure inputs are mapp
 /// 101: !rs1_data AND csr_rdata
 /// for csrrc
 /// 
-/// 110: { 27{1'b1}, !imm[4:0] } OR csr_rdata
+/// 110: { 27{1'b1}, !imm[4:0] } AND csr_rdata
 /// for csrrci
 /// 
 /// Whenever OP is used above, alu_op is used to
