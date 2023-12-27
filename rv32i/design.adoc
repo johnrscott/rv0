@@ -190,6 +190,81 @@ module imm_gen(
        );
 ----
 
+=== Register File
+
+The register file is combinational with respect to reads (`rs1` determines `rs1_data`, and `rs2` determines `rs2_data`), and sequential for writes (`rd_data` is written to `rd` on the rising clock edge if `write_en` is set). The signature for the data path is as follows:
+
+[,verilog]
+----
+/// 32-bit Register file
+///
+/// There are 32 32-bit registers x0-x31, with x0 hardwired
+/// to zero. This module provides two combinational output
+/// ports, controlled by the two addresses rs1 and src, and
+/// a single registered write (on the rising edge of the clock
+/// when the write enable signal is asserted).
+///
+/// There is no reset; on power-on, the register values are 
+/// set to zero.
+///
+module register_file(
+    input clk, // clock
+    input write_en, // write enable for rd
+	input [31:0] rd_data, // data for write
+    input [4:0] rs1, // source register index
+    input [4:0] rs2, // source register index
+    input [4:0] rd, // destination register index for write
+    output [31:0] rs1_data, // read port for rs1
+    output [31:0] rs2_data // read port for rs2
+    );
+----
+
+The fields `rs1`, `rs2`, and `rd` are routed from fixed locations in `instr`. The source for `rd_data` is selected from one of the following options:
+
+* `main_alu_result` for register-register, register-immediate, and `auipc` instructions
+* `data_mem_rdata` for load instructions
+* `csr_rdata` for Zicsr instructions
+* `pc_plus_4` for unconditional jump instructions
+* `imm` for `lui`
+
+To simplify the data path, the register file is wrapped in a module that routes the register indices from the instruction, and selects the source for writing data:
+
+[,verilog]
+----
+/// Write data for rd in register file
+///
+/// The rd_data_sel arguments selects between the inputs:
+///
+/// 000: main_alu_result,
+/// for register-register, register-immediate, and auipc instructions
+///
+/// 001: data_mem_rdata
+/// for load instructions
+///
+/// 010: csr_rdata
+/// for Zicsr instruction
+///
+/// 011: pc_plus_4
+/// for unconditional jump instructions
+///
+/// 100: { instr[31:12], 12{1'b0} } (from instr input)
+/// for lui instruction
+///
+module register_file_wrapper(
+	input clk, // for writing
+	input write_en, // 1 to write data to rd; 0 otherwise
+	input [1:0] rd_data_sel, // pick what to write to rd
+	input [31:0] main_alu_result, // the output from the main ALU
+	input [31:0] data_mem_rdata, // data output from data memory bus
+	input [31:0] csr_rdata, // data output from CSR bus
+	input [31:0] pc_plus_4, // current pc + 4, from pc module
+	input [31:0] instr, // current instruction
+    	output [31:0] rs1_data, // read port for rs1
+    	output [31:0] rs2_data // read port for rs2
+    );
+----
+
+
 
 == OLD VERSION BELOW
 
@@ -775,31 +850,6 @@ module exception_encoder(
 
 The register file has two combinational read ports and one sequential write port. The register file does not raise exceptions. The signature of the register file is shown below:
 
-[,verilog]
-----
-/// 32-bit Register file
-///
-/// There are 32 32-bit registers x0-x31, with x0 hardwired
-/// to zero. This module provides two combinational output
-/// ports, controlled by the two addresses rs1 and src, and
-/// a single registered write (on the rising edge of the clock
-/// when the write enable signal is asserted).
-///
-/// There is no reset; on power-on, the register values are 
-/// set to zero.
-///
-module register_file(
-    input clk, // clock
-    input write_en, // write enable
-	input [31:0] rd_data, // data for write
-    input [4:0] rs1, // source register index A
-    input [4:0] rs2, // source register index B
-    input [4:0] rd, // destination register index for write
-    output [31:0] rs1_data, // read port A
-    output [31:0] rs2_data // read port B
-    );
-----
-
 == Data path (multiplexers)
 
 This section contains the designs for signal selection multiplexers at the inputs to most of the data path modules. They are named using the format `<module_name>_<input_name>_sel` where `<module_name>` and `<input_name>` specifies which signal of which module is being driven. The control signals for each multiplexer come from the control unit. Sometimes, the module may contain logic in addition to a multiplexer for generating the input signal.
@@ -888,26 +938,6 @@ module main_alu_b_sel(
 
 The `rd_data` signal for writing to `rd` is selected from multiple sources depending on the instruction. The module is given below
 
-[,verilog]
-----
-/// Write data for rd in register file
-///
-/// The sel arguments selects between the inputs (sel is in binary):
-///  00: main_alu_r, for register-register, register-immediate, 
-///  and lui/auipc instructions
-///  01: for load instructions
-///  10: csr_bus_out, for all CSR instructions
-///  11: pc + 4, for jal/jalr instructions
-///
-module register_file_rd_data_sel(
-	input [1:0] sel, // choose the output signal
-	input [31:0] main_alu_r, // the output from the main ALU
-	input [31:0] data_mem_rdata, // data output from data memory bus
-	input [31:0] csr_rdata, // data output from CSR bus
-	input [31:0] pc_plus_4, // current pc + 4, from next_pc_sel
-	output rd_data // output data for writing to register rd
-	);
-----
 
 === Trap controller CSR write data
 
