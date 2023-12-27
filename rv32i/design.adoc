@@ -9,6 +9,190 @@ The intention is to create a simple single-cycle design that conforms to the spe
 
 The design is intended for synthesis on Xilinx FPGAs. As a result, some design decisions are motivated by guidance in, e.g., https://docs.xilinx.com/r/en-US/ug949-vivado-design-methodology:"[Xilinx ultrafast design methodology].
 
+== Data Path
+
+=== Main ALU
+
+The design will use a single ALU, which must support computational instructions, address calculations, and comparisons for branch operations. The structure of the RISC-V instructions means that it is possible to consistently route operands to the same input ports of the ALU. The computations required by the RV32I instructions are given below:
+
+* `rs1_data OP rs2_data`, for register-register and conditional branch instructions
+* `rs1_data OP imm`, for register-immediate, load/store, and `jalr` instructions
+* `pc + imm`, for `jal` and `auipc`
+* `0 + imm`, for `lui` (could also bypass the ALU)
+
+NOTE: The `jalr` instruction also requires masking the ALU result using `0xffff_fffe` before writing to `rd`. This is dealt with outside the ALU module.
+
+The main ALU module will take the 32-bit immediate `imm` from an external immediate generation module, which is assumed to supply the correct immediate for the instruction type.
+
+For Zicsr instructions, the following operands are required:
+
+* `rs1_data OR csr_rdata` for `csrrs`
+* `imm OR csr_rdata` for `csrrsi`
+* `!rs1_data AND csr_rdata` for `csrrc`
+* `{ 27{1'b1}, !imm[4:0] } AND csr_rdata` for `csrrci`
+
+NOTE: The bitwise negation of the `imm` instruction only applies to the bottom 5 bits (`uimm` in CSR instructions); otherwise, `csrrci` could inadvertently clear high bits of the CSR (above bit 4).
+
+In the formulas above, the order of operands represents how they will be mapped to the input ports of the ALU. The following pointers motivate the choice of operand order:
+
+* The `rs1_data` field is routed to port 1 of the ALU, and immediates are typically routed to port 2. This implies the ALU shift operation must use the first port for the value to be shifted, and use the second port for the shift amount.
+* For Zicsr instructions, the order of operands was chosen to fix the position of `csr_rdata`, and keep `rs1_data` on port 1, at the expense of having an immediate on port 1 (inconsistent with RV32I).
+
+The ALU module is described below.
+
+==== ALU Module
+
+The ALU should be able to perform the following operations on its operands `a` and `b`, to produce result `r`:
+
+* addition: `r = a + b`
+* subtraction: `r = a - b`
+* and: `r = a & b`
+* or: `r = a | b`
+* xor: `r = a ^ b`
+* shift left: `r = a << b`
+* shift right (logical): `r = a >> b`
+* shift right (arithmetic): `r = a >>> b`
+* set if less than (unsigned): `r = a < b (unsigned)? 1 : 0`
+* set if less than (signed): `r = a < b (signed)? 1 : 0`
+
+The only required flag is `zero`, for use by `beq` and `bne` instructions. Other conditional branch instructions can use `r[0]` with the operation set-if-less-than (signed/unsigned). 
+
+The signature for the `alu` module is shown below:
+
+[,verilog]
+----
+/// Arithmetic Control Unit
+///
+/// This is a purely combinational ALU implementation.
+///
+/// The operation depends on the 4-bit alu_op as
+/// follows: 
+///
+/// 0_000: r = a + b
+/// 1_000: r = a - b
+/// 0_001: r = a << b
+/// x_010: r = a < b ? 1 : 0
+/// x_011: r = signed(a) < signed(b) ? 1 : 0
+/// x_100: r = a ^ b
+/// 0_101: r = a >> b
+/// 1_101: r = signed(a) >>> signed(b)
+/// x_110: r = a | b
+/// x_111: r = a & b
+///
+/// The separation in alu_op indicates that the top bit
+/// comes form bit 30 of the instruction, and the bottom
+/// 3 bits come from funct3, in R-type register-register
+/// instructions.
+///
+/// For I-type register-immediate instructions, ensure
+/// that the top bit is 0 for addi, slti, sltiu, xori
+/// ori, and andi. For slli, srli, and srai, set the top
+/// bit to bit 30 of the instruction, and set b to the
+/// shift amount (shamt) field. Set the low three
+/// bits to funct3 in all cases.
+///
+module alu(
+    input [31:0] a, // First 32-bit operand
+    input [31:0] b, // Second 32-bit operand
+    input [3:0] alu_op, // ALU control signals (see comments above)
+    output [31:0] r, // 32-bit result
+    output zero // 1 if r is zero, 0 otherwise
+    );
+----
+
+==== Main ALU Wrapper
+
+A wrapper module is used to encapsulate the main ALU, and ensure inputs are mapped to the correct ports of the ALU consistently with the operation being implemented. The signature of the module is:
+
+[,verilog]
+----
+/// Main ALU Wrapper Module
+///
+/// This module routes input operands to the
+/// main ALU depending on the instruction
+/// being executed.
+///
+/// The arguments for the ALU are selected
+/// by arg_sel as follows:
+///
+/// 000: rs1_data OP rs2_data
+/// for register-register and conditional branch instructions
+///
+/// 001: rs1_data OP imm
+/// for register-immediate, load/store, and jalr instructions
+///
+/// 010: pc + imm
+/// for jal and auipc
+///
+/// 011: rs1_data OR csr_rdata
+/// for csrrs
+/// 
+/// 100: imm OR csr_rdata
+/// for csrrsi
+///
+/// 101: !rs1_data AND csr_rdata
+/// for csrrc
+/// 
+/// 110: { 27{1'b1}, !imm[4:0] } OR csr_rdata
+/// for csrrci
+/// 
+/// Whenever OP is used above, alu_op is used to
+/// select the ALU operation following the comments
+/// in the alu module.
+///
+/// Ensure that the imm input is consistent with the
+/// operation being implemented (depending on the
+/// instruction format).
+///
+/// In this design, the lui instruction bypasses the ALU.
+module main_alu_wrapper(
+       input [2:0] arg_sel, // Select the ALU arguments
+       input [3:0] alu_op, // Select the ALU operation (when required)
+       input [31:0] rs1_data, // Value of rs1 register
+       input [31:0] rs2_data, // Value of rs2 register
+       input [31:0] imm, // 32-bit immediate
+       input [31:0] pc, // Current program counter
+       input [31:0] csr_rdata, // Read-data for CSR bus
+       output [31:0] main_alu_result, // ALU output
+       output main_alu_zero // ALU zero flag output
+       );
+----
+
+=== Immediate Generation
+
+All immediates encoded in RISC-V instructions should be extended to 32-bit (mostly sign-extended, but zero-extended for Zicsr instructions. In addition, each instruction in RV32I or Zicsr only uses one immediate per instruction (either `imm` or `uimm`), meaning one module can decode this single immediate and expose it as one output `imm`. The module signature is as follows:
+
+[,verilog]
+----
+/// Extract an immediate encoded in the instruction
+///
+/// Each RV32I or Zicsr instruction contains at most
+/// one immediate, which is extracted and converted to
+/// a 32-bit format by this module. For Zicsr instructions,
+/// the uimm field is also zero-extended to 32 bits, and
+/// output using the same imm output.
+///
+/// The reference for how immediates are decoded is
+/// v1_f2.4. The sel input picks the output as follows:
+///
+/// 000: { 21{instr[31]}, instr[30:20] }, I-type
+/// 001: { 21{instr[30:25]}, instr[11:7] }, S-type
+/// 010: { 20{instr[31]}, instr[7], instr[30:25], instr[11:8], 1'b0 }, B-type
+/// 011: { instr[31:12], 12{1'b0} }, U-type
+/// 100: { 12{instr[31]}, instr[19:12], instr[20], instr[30:21], 1'b0 }, J-type
+///
+/// 101: {27{1'b0}, instr[24:20]}, Zicsr
+///
+module imm_gen(
+       input sel, // Set immediate to extract
+       input [31:0] instr, // Current instruction
+       output [31:0] imm, // Output 32-bit immediate
+       );
+----
+
+
+== OLD VERSION BELOW
+
 == Data path (instructions)
 
 This section describes how the instruction uses the hardware of the data path.
@@ -586,68 +770,6 @@ module exception_encoder(
 	output mcause, // what exception was raised
 	);
 ----
-
-=== Main ALU (combinational)
-
-The main ALU is responsible for register-register calculation, register-immediate calculations, and address calculations. It does not raise any exceptions. The ALU should be able to perform the following operations on its operands `a` and `b`, to produce result `r`:
-
-* addition: `r = a + b`
-* subtraction: `r = a - b`
-* and: `r = a & b`
-* or: `r = a | b`
-* xor: `r = a ^ b`
-* shift left: `r = a << b`
-* shift right (logical): `r = a >> b`
-* shift right (arithmetic): `r = a >>> b`
-* set if less than (unsigned): `r = a < b (unsigned)? 1 : 0`
-* set if less than (signed): `r = a < b (signed)? 1 : 0`
-
-The only required flag is `zero`, for use by `beq` and `bne` instructions. Other conditional branch instructions can use `r[0]` with the operation set-if-less-than (signed/unsigned). 
-
-The signature for the `alu` module used for the `main_alu` component is shown below:
-
-[,verilog]
-----
-/// Arithmetic Control Unit
-///
-/// This is a purely combinational ALU implementation.
-///
-/// The operation depends on the 4-bit alu_op as
-/// follows: 
-///
-/// 0_000: r = a + b
-/// 1_000: r = a - b
-/// 0_001: r = a << b
-/// x_010: r = a < b ? 1 : 0
-/// x_011: r = signed(a) < signed(b) ? 1 : 0
-/// x_100: r = a ^ b
-/// 0_101: r = a >> b
-/// 1_101: r = signed(a) >>> signed(b)
-/// x_110: r = a | b
-/// x_111: r = a & b
-///
-/// The separation in alu_op indicates that the top bit
-/// comes form bit 30 of the instruction, and the bottom
-/// 3 bits come from funct3, in R-type register-register
-/// instructions.
-///
-/// For I-type register-immediate instructions, ensure
-/// that the top bit is 0 for addi, slti, sltiu, xori
-/// ori, and andi. For slli, srli, and srai, set the top
-/// bit to bit 30 of the instruction, and set b to the
-/// shift amount (shamt) field. Set the low three
-/// bits to funct3 in all cases.
-///
-module alu(
-    input [31:0] a, // First 32-bit operand
-    input [31:0] b, // Second 32-bit operand
-    input [3:0] alu_op, // ALU control signals (see comments above)
-    output [31:0] r, // 32-bit result
-    output zero // 1 if r is zero, 0 otherwise
-    );
-----
-
-An instance of the `alu` module will also be used for the `next_pc` calculation.
 
 === Register file (sequential)
 
