@@ -42,7 +42,7 @@ module data_path(
   // file. This will be overridden if a trap
   // occurs.
   input 	register_file_write_en,
-  input [1:0] 	register_file_rd_data_sel,
+  input [2:0] 	register_file_rd_data_sel,
   
   // Whether to write data to the data memory
   // bus (for loads/stores). This will be
@@ -66,6 +66,9 @@ module data_path(
    wire [6:0]  funct7;
    wire [4:0]  uimm;
 
+   // 32-bit sign- or zero-extended immediate
+   wire [31:0] imm;
+   
    // Main ALU signals
    wire [31:0] main_alu_result, a, b, main_alu_b_imm;
    wire        main_alu_zero;
@@ -85,13 +88,7 @@ module data_path(
    wire        data_mem_claim_trap_ctrl, csr_claim_trap_ctrl;
 
    // Program counter signals
-   wire [31:0] pc, pc_plus_4, branch_offset_imm;
-
-   // Conditional branch offset immediate generation
-   branch_offset_imm_gen branch_offset_imm_gen_0(
-     .instr(instr),
-     .offset(branch_offset_imm)
-     );
+   wire [31:0] pc, pc_plus_4;
    
    // Provides and updates the program counter   
    pc pc_0(
@@ -100,7 +97,7 @@ module data_path(
      .mepc(mepc),
      .exception_vector(exception_vector),
      .interrupt_offset(interrupt_offset),
-     .offset(branch_offset_imm),
+     .offset(imm),
      .main_alu_r(main_alu_result),
      .trap(trap),
      .pc(pc),
@@ -229,29 +226,21 @@ module data_path(
      .instr_access_fault(instr_access_fault)
      );
 
-   // Pick the source for the register file rd write data
-   register_file_rd_data_sel register_file_rd_data_sel_0(
-     .sel(register_file_rd_data_sel),
-     .main_alu_r(main_alu_result),
+   // Register file
+   assign register_file_write_en_internal = register_file_write_en & !trap;
+   register_file_wrapper register_file_wrapper_0(
+     .clk(clk),
+     .write_en(register_file_write_en_internal),
+     .rd_data_sel(register_file_rd_data_sel),
+     .main_alu_result(main_alu_result),
      .data_mem_rdata(data_mem_rdata),
      .csr_rdata(csr_rdata),
      .pc_plus_4(pc_plus_4),
-     .rd_data(rd_data)
-     );
-     
-   // Register file
-   assign register_file_write_en_internal = register_file_write_en & !trap;
-   register_file register_file_0(
-     .rs1(rs1),
-     .rs2(rs2),
-     .rd_data(rd_data),
-     .rd(rd),
-     .write_en(register_file_write_en_internal),
-     .clk(clk),
+     .instr(instr),
      .rs1_data(rs1_data),
      .rs2_data(rs2_data)
      );
-   
+     
    // Immediate generation for all instruction formats
    imm_gen imm_gen_0(
      .sel(imm_gen_sel),

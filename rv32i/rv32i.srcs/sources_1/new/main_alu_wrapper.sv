@@ -91,7 +91,7 @@ module main_alu_wrapper(
 	   // for csrrc
 	   a = ~rs1_data;
 	   b = csr_rdata;
-	   alu_op_internal = { 0, FUNCT3_AND };
+	   alu_op_internal = { 1'b0, FUNCT3_AND };
 	end
 	3'b110: begin
 	   // for csrrci
