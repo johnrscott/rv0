@@ -176,17 +176,17 @@ All immediates encoded in RISC-V instructions should be extended to 32-bit (most
 /// v1_f2.4. The sel input picks the output as follows:
 ///
 /// 000: { 21{instr[31]}, instr[30:20] }, I-type
-/// 001: { 21{instr[30:25]}, instr[11:7] }, S-type
+/// 001: { 21{instr[31]}, {instr[30:25]}, instr[11:7] }, S-type
 /// 010: { 20{instr[31]}, instr[7], instr[30:25], instr[11:8], 1'b0 }, B-type
 /// 011: { instr[31:12], 12{1'b0} }, U-type
 /// 100: { 12{instr[31]}, instr[19:12], instr[20], instr[30:21], 1'b0 }, J-type
 ///
-/// 101: {27{1'b0}, instr[24:20]}, Zicsr
+/// 101: { 27{1'b0}, instr[24:20] }, Zicsr
 ///
 module imm_gen(
-       input sel, // Set immediate to extract
+       input [2:0] sel, // Set immediate to extract
        input [31:0] instr, // Current instruction
-       output [31:0] imm, // Output 32-bit immediate
+       output [31:0] imm // Output 32-bit immediate
        );
 ----
 
