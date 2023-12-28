@@ -97,11 +97,10 @@ module trap_ctrl(
 	
 	input 	      meip, // external interrupt source (from PLIC)
 	input 	      mret, // set to perform a return from trap
-	input 	      exception, // has an exception been raised
-	input [31:0]  mcause, // the cause of the exception
+	input 	      trap, // has a trap occurred 
+	input [31:0]  exception_mcause, // the cause of the exception
 	input [31:0]  pc, // used for setting mepc on exception
 	
-	output 	      trap, // set if any trap is detected
 	output 	      interrupt, // set if an interrupt is detected
 	output [31:0] mepc, // exception pc for use by next_pc_sel
 	output [31:0] exception_vector, // for use by next_pc_set

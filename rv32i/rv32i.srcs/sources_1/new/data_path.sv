@@ -12,23 +12,11 @@ module data_path(
   input 	mret,
 
   /// Immediate generation
-  input 	imm_gen_sel,
+  input [2:0] 	imm_gen_sel,
   
   /// Set main ALU behaviour
   input [2:0] 	alu_arg_sel,
 
-  // Signals asserted for specific
-  // classes of instructions
-  wire 		load_store_instr, csr_instr,
-  
-  // External illegal instruction flag
-  // from instruction decoding (control
-  // unit)
-  input 	illegal_instr_ext,
-
-  // Other external exceptions from control unit
-  input 	ecall_mmode, breakpoint,
-  
   // For a load/store, what width to use
   input [1:0] 	data_mem_width,
 
@@ -53,10 +41,28 @@ module data_path(
   // Overridden if a trap occurs.
   input 	csr_write_en,
 
+  // Set for transfer to trap (next pc selection)
+  input 	trap,
+
+  // If an exception was raised, what is the mcause
+  input [31:0] 	exception_mcause,
+		 
   // Fetched instruction for use by the
   // control unit.
-  output [31:0] instr
-  
+  output [31:0] instr,
+
+  // Exception flags
+  output 	illegal_instr,
+  output 	instr_addr_mis, 
+  output 	instr_access_fault,
+
+  // Interrupt flag
+  output 	interrupt,
+		 
+  // Bus claim signals, used to trigger
+  // load/store access faults
+  output 	data_mem_claim, csr_claim
+		 
   );
 
    // Fixed instruction fields
@@ -77,10 +83,6 @@ module data_path(
    // Register file signals
    wire [31:0] rd_data, rs1_data, rs2_data;
 
-   // Exception signals
-   wire        instr_addr_mis, instr_access_fault, illegal_instr, 
-	       load_access_fault, store_access_fault;
-   
    // Trap controller signals
    wire [31:0] mcause, mepc, exception_vector, interrupt_offset,
 	       data_mem_rdata_trap_ctrl, csr_rdata_trap_ctrl,
@@ -119,39 +121,25 @@ module data_path(
    wire [31:0] data_mem_addr;
    //wire [1:0]  data_mem_width;
    wire [31:0] data_mem_wdata;
-   wire        data_mem_write_en_internal;
+   //wire        data_mem_write_en;
    wire [31:0] data_mem_rdata;
-   wire        data_mem_claim;
+   //wire        data_mem_claim;
    
    assign data_mem_addr = main_alu_result;
    assign data_mem_wdata = rs1_data;
-   assign data_mem_write_en_internal = data_mem_write_en & !trap;
    assign data_mem_claim = data_mem_claim_trap_ctrl;
    
-   // Load and store access faults are raised if a data
-   // memory bus access is requested, but no device on
-   // the bus "claims" the read/write. Loads/stores are
-   // distinguished by whether the write enable signal
-   // is set
-   assign load_access_fault = load_store_instr &
-			      !data_mem_claim &
-			      !data_mem_write_en;
-   assign store_access_fault = load_store_instr &
-			       !data_mem_claim &
-			       data_mem_write_en;
-
    // Combine outputs from all data memory bus devices
    assign data_mem_rdata = data_mem_rdata_trap_ctrl;
    
    // CSR bus
    wire [11:0] csr_addr;
    wire [31:0] csr_wdata;
-   wire        csr_write_en_internal;
+   wire        csr_write_en;
    wire [31:0] csr_rdata;
-   wire        csr_claim;
+   //wire        csr_claim;
 
    assign csr_addr = instr[31:20];
-   assign csr_write_en_internal = csr_write_en & !trap;   
    // Combine outputs from all CSR devices
    assign csr_rdata = csr_rdata_trap_ctrl;
 
@@ -161,29 +149,14 @@ module data_path(
    // no device on the CSR bus "claims" the read/write, then
    // that CSR does not exist and an illegal instruction is
    // raised   
-   assign illegal_instr = illegal_instr_ext |
-			  illegal_instr_trap_ctrl |
-			  (csr_instr & !csr_claim);
-   
-   // Convert exception flags to exception cause
-   exception_encoder exception_encoder_0(
-     .instr_addr_mis(instr_addr_mis),
-     .instr_access_fault(instr_access_fault),
-     .illegal_instr(illegal_instr),
-     .breakpoint(breakpoint),
-     .load_access_fault(load_access_fault),
-     .store_access_fault(store_access_fault),
-     .ecall_mmode(ecall_mmode),
-     .exception(exception),
-     .mcause(mcause)
-     );
+   assign illegal_instr = illegal_instr_trap_ctrl;
 
    // CSR write data for trap controller
    trap_ctrl_csr_wdata_sel trap_ctrl_csr_wdata_sel_0(
      .sel(trap_ctrl_csr_wdata_sel),
      .rs1_data(rs1_data),
      .main_alu_r(main_alu_result),
-     .uimm(uimm),
+     .uimm(imm[4:0]),
      .csr_wdata(csr_wdata_trap_ctrl)
      );
    
@@ -193,27 +166,26 @@ module data_path(
 
      .meip(meip),
      .mret(mret),
-     .exception(exception),
-     .mcause(mcause),
-     .pc(pc),
      .trap(trap),
+     .exception_mcause(exception_mcause),
+     .pc(pc),
      .interrupt(interrupt),
      .mepc(mepc),
      .exception_vector(exception_vector),
      .interrupt_offset(interrupt_offset),
-
+			 
      // Data memory bus
      .data_mem_addr(data_mem_addr),
      .data_mem_width(data_mem_width),
      .data_mem_wdata(data_mem_wdata),
-     .data_mem_write_en(data_mem_write_en_internal),
+     .data_mem_write_en(data_mem_write_en),
      .data_mem_rdata(data_mem_rdata_trap_ctrl),
      .data_mem_claim(data_mem_claim_trap_ctrl),
 
      // CSR bus
      .csr_addr(csr_addr),
      .csr_wdata(csr_wdata_trap_ctrl),
-     .csr_write_en(csr_write_en_internal),
+     .csr_write_en(csr_write_en),
      .csr_rdata(csr_rdata_trap_ctrl),
      .csr_claim(csr_claim_trap_ctrl),
      .illegal_instr(illegal_instr_trap_ctrl)
@@ -227,10 +199,9 @@ module data_path(
      );
 
    // Register file
-   assign register_file_write_en_internal = register_file_write_en & !trap;
    register_file_wrapper register_file_wrapper_0(
      .clk(clk),
-     .write_en(register_file_write_en_internal),
+     .write_en(register_file_write_en),
      .rd_data_sel(register_file_rd_data_sel),
      .main_alu_result(main_alu_result),
      .data_mem_rdata(data_mem_rdata),
