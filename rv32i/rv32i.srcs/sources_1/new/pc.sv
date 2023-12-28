@@ -15,7 +15,7 @@
 ///
 /// 00: pc + 4
 /// 01: mepc
-/// 10: 32'hffff_fffe & main_alu_r
+/// 10: 32'hffff_fffe & main_alu_result
 /// 11: pc + offset
 ///
 /// The control line trap decides whether maybe_next_pc
@@ -43,11 +43,33 @@ module pc(
 	input [31:0] mepc, // the pc to use for mret
 	input [31:0] trap_vector, // next pc to use on trap
 	input [31:0] offset, // offset to add to the current pc
-	input [31:0] main_alu_r, // un-masked jalr target PC
+	input [31:0] main_alu_result, // un-masked jalr target PC
 	input trap, // 0 for normal program flow, 1 for trap
-	output [31:0] pc, // the current program counter
+	output reg [31:0] pc, // the current program counter
 	output [31:0] pc_plus_4, // the current program counter + 4
 	output instr_addr_mis // flag for instruction address misaligned exception
 	);
+
+    reg [31:0] maybe_next_pc;  
+    
+    assign pc_plus_4 = pc + 4;
+    assign instr_addr_mis = (maybe_next_pc[1:0] != 2'b00);
+    
+    always @* begin
+        case(sel)
+            2'd0: maybe_next_pc = pc_plus_4;
+            2'd1: maybe_next_pc = mepc;
+            2'd2: maybe_next_pc = 32'hffff_fffe & main_alu_result;
+            2'd3: maybe_next_pc = pc + offset;
+        endcase
+    end
+
+    always @(posedge clk) begin
+        if(trap)
+            pc <= trap_vector;
+        else
+            pc <= maybe_next_pc;
+    end
+    
 
 endmodule

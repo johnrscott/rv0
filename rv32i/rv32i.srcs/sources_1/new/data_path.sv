@@ -89,6 +89,10 @@ module data_path(
 	       csr_wdata_trap_ctrl;
    wire        data_mem_claim_trap_ctrl, csr_claim_trap_ctrl;
 
+   // Main memory signals
+   wire [31:0] data_mem_rdata_main_mem;
+   wire        data_mem_claim_main_mem;
+   
    // Program counter signals
    wire [31:0] pc, pc_plus_4;
    
@@ -99,7 +103,7 @@ module data_path(
      .mepc(mepc),
      .trap_vector(trap_vector),
      .offset(imm),
-     .main_alu_r(main_alu_result),
+     .main_alu_result(main_alu_result),
      .trap(trap),
      .pc(pc),
      .pc_plus_4(pc_plus_4),
@@ -126,10 +130,12 @@ module data_path(
    
    assign data_mem_addr = main_alu_result;
    assign data_mem_wdata = rs1_data;
-   assign data_mem_claim = data_mem_claim_trap_ctrl;
+   assign data_mem_claim = data_mem_claim_trap_ctrl |
+			   data_mem_claim_main_mem;
    
    // Combine outputs from all data memory bus devices
-   assign data_mem_rdata = data_mem_rdata_trap_ctrl;
+   assign data_mem_rdata = data_mem_rdata_trap_ctrl |
+			   data_mem_rdata_main_mem;
    
    // CSR bus
    wire [11:0] csr_addr;
@@ -196,6 +202,16 @@ module data_path(
      .instr_access_fault(instr_access_fault)
      );
 
+   // Main memory
+   main_mem main_mem_0(
+     .data_mem_addr(data_mem_addr),
+     .data_mem_width(data_mem_width),
+     .data_mem_wdata(data_mem_wdata),
+     .data_mem_write_en(data_mem_write_en),
+     .data_mem_rdata(data_mem_rdata_main_mem),
+     .data_mem_claim(data_mem_claim_main_mem)
+     );
+   
    // Register file
    register_file_wrapper register_file_wrapper_0(
      .clk(clk),
