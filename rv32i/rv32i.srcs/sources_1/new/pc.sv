@@ -26,8 +26,6 @@
 /// maybe_next_pc -------- 
 ///                       MUX ----- next_pc
 /// trap_pc --------------
-///
-/// where trap_pc = exception_vector + interrupt_offset
 /// 
 /// If the maybe_next_pc is not a multiple of 4 when adding
 /// offset or using jalr_target (i.e. pc_src 01 or
@@ -43,8 +41,7 @@ module pc(
     input clk, // the clock (pc updates on rising edge)	
 	input [1:0] sel, // select the next pc for normal program flow
 	input [31:0] mepc, // the pc to use for mret
-	input [31:0] exception_vector, // from mtvec
-	input [31:0] interrupt_offset, // 0 for exception; for interrupt, specify byte offset to trap vector
+	input [31:0] trap_vector, // next pc to use on trap
 	input [31:0] offset, // offset to add to the current pc
 	input [31:0] main_alu_r, // un-masked jalr target PC
 	input trap, // 0 for normal program flow, 1 for trap

@@ -103,8 +103,7 @@ module trap_ctrl(
 	
 	output 	      interrupt, // set if an interrupt is detected
 	output [31:0] mepc, // exception pc for use by next_pc_sel
-	output [31:0] exception_vector, // for use by next_pc_set
-	output [31:0] interrupt_offset, // for use by next_pc_set
+	output [31:0] trap_vector, // next pc to use if a trap occurs
 
 	// Data memory read/write port
 	input [31:0]  data_mem_addr, // the read/write address bus 

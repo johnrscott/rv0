@@ -43,6 +43,8 @@ Interrupts are always handled "first", before executing an instruction. An inter
 
 == Data Path
 
+image::res/data_path.svg[width=2500,link="res/data_path.svg"]
+
 === Main ALU
 
 The design will use a single ALU, which must support computational instructions, address calculations, and comparisons for branch operations. The structure of the RISC-V instructions means that it is possible to consistently route operands to the same input ports of the ALU. The computations required by the RV32I instructions are given below:

@@ -19,3 +19,6 @@
 # Asciidoc generated outputs
 *.pdf
 *.html
+
+# Allow a folder of diagrams
+#!rv32i/res/*

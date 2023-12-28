@@ -84,7 +84,7 @@ module data_path(
    wire [31:0] rd_data, rs1_data, rs2_data;
 
    // Trap controller signals
-   wire [31:0] mcause, mepc, exception_vector, interrupt_offset,
+   wire [31:0] mcause, mepc, trap_vector,
 	       data_mem_rdata_trap_ctrl, csr_rdata_trap_ctrl,
 	       csr_wdata_trap_ctrl;
    wire        data_mem_claim_trap_ctrl, csr_claim_trap_ctrl;
@@ -97,8 +97,7 @@ module data_path(
      .clk(clk),
      .sel(pc_sel),
      .mepc(mepc),
-     .exception_vector(exception_vector),
-     .interrupt_offset(interrupt_offset),
+     .trap_vector(trap_vector),
      .offset(imm),
      .main_alu_r(main_alu_result),
      .trap(trap),
@@ -171,9 +170,8 @@ module data_path(
      .pc(pc),
      .interrupt(interrupt),
      .mepc(mepc),
-     .exception_vector(exception_vector),
-     .interrupt_offset(interrupt_offset),
-			 
+     .trap_vector(trap_vector),
+	 
      // Data memory bus
      .data_mem_addr(data_mem_addr),
      .data_mem_width(data_mem_width),
