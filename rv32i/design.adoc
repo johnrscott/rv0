@@ -22,10 +22,27 @@ The two main components of this single-cycle design are the data path and the co
 
 In the normal execution of an instruction which does not raise an exception and is not interrupted, the order of operations is as follows:
 
-. The data path contains the program counter, which combinationally fetches an instruction.
+. The data path combinationally fetches an instruction (based on the program counter which is a register in the data path)
 . The fetched instruction is an input to the control unit, which combinationally decodes the instruction and configures the data path control lines
 . The computations involved in executing the instruction in the data path are all combinational, so the result of the computation stabilises at the write inputs to all the registers and memory
 . On the next rising clock edge, the results of the instruction are loaded into registers and memory in the data path
+
+In an instruction that raises an exception, the order of operations is as follows:
+
+. The data path combinationally fetches an instruction (based on the program counter which is a register in the data path)
+. The fetched instruction is an input to the control unit, which combinationally decodes the instruction and configures the data path control lines
+. The computations involved in executing the instruction load to an exception flag being raised (an output from the data path)
+. The control unit reads the exception flag, and sets control lines to raise an exception trap. In doing so, none of the control lines that caused the exception to be raised are modified (otherwise the exception flag would not persist; this requirement is due to having an all-combinational computation). However, all lines that involves writes to integer registers, data memory, or CSRs should be de-asserted so that the instruction raising the exception does not complete
+. On the next rising clock edge, the CPU state is modified so as to raise the exception (program counter set to exception vector, CSRs modified, etc.)
+
+Interrupts are always handled "first", before executing an instruction. An interrupt is handled as follows:
+
+. The data path checks interrupt conditions in parallel with fetching the instruction, and sets an interrupt flag (output) if an interrupt is pending
+. The control unit reads the interrupt flag, and sets control lines to raise an interrupt trap, instead of decoding the instruction.
+. On the next rising clock edge, the CPU state is modified so as to raise the interrupt (program counter set to interrupt vector, CSRs modified, etc.)
+
+
+
 
 == Data Path
 
