@@ -43,6 +43,47 @@ module control_unit(
   output [31:0] exception_mcause // for an exception, what is the mcause value
   );
 
+   // Different instruction classes
+   enum 	{
+		PRIV, UP_IMM, REG_REG,
+		REG_IMM, JUMP, BRANCH,
+		LOAD, STORE, CSR
+		} instr_type;
+   
+   always_comb begin
+
+      // Set all control signals to default values
+      data_mem_width = 0; // loads/stores are byte width
+      imm_gen_sel = 0; // arbitrary immediate
+      alu_arg_sel = 0; // arbitrary ALU op
+      pc_sel = 0; // next pc = pc + 4
+      trap_ctrl_csr_wdata_sel = 0; // arbitrary CSR write data source
+      register_file_write_en = 0; // no write to rd
+      register_file_rd_data_sel = 0; // arbitrary write source to rd
+      data_mem_write_en = 0; // no write to data memory
+      csr_write_en = 0; // no write to CSR bus
+      trap = 0; // no trap will occur
+      exception_mcause = 0; // arbitrary mcause
+      
+      case (instr_type)
+	PRIV:;
+	UP_IMM: begin
+	   // lui and auipc
+	   register_file_write_en = 1;
+	   register_file_rd_data_sel = 3'b100;
+	end;
+	REG_REG:;
+	REG_IMM:;
+	JUMP:;
+	BRANCH:;
+	LOAD:;
+	STORE:;
+	CSR:;
+	default
+      endcase
+
+   end
+   
    // stub implementation
    assign trap = 0;
    assign exception_mcause = 0;
