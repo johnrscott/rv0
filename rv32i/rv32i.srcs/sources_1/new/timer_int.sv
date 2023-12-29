@@ -62,62 +62,84 @@ module timer_int(
       endcase
    end
 
-   // Data memory interface for mtime and mtimecmp
-   logic first_byte = data_mem_addr;
-   logic last_byte;
+   // Address range validity
+   logic addr_is_mtime, addr_is_mtimecmp;
    always_comb begin
-      last_byte = first_byte;
-      case(data_mem_width)
-	1: last_byte = first_byte + 1;
-	2: last_byte = first_byte + 3;
+      addr_is_mtime = 0;
+      addr_is_mtimecmp = 0;
+      case (data_mem_width)
+	0: addr_is_mtime = (data_mem_addr >= 'h1000_bff8) && (data_mem_addr < 'h1000_c000);
+	1: addr_is_mtime = (data_mem_addr >= 'h1000_bff8) && (data_mem_addr < 'h1000_bfff);
+	2: addr_is_mtime = (data_mem_addr >= 'h1000_bff8) && (data_mem_addr < 'h1000_bffd);
+      endcase
+      case (data_mem_width)
+	0: addr_is_mtimecmp = (data_mem_addr >= 'h1000_4000) && (data_mem_addr < 'h1000_4008);
+	1: addr_is_mtimecmp = (data_mem_addr >= 'h1000_4000) && (data_mem_addr < 'h1000_4007);
+	2: addr_is_mtimecmp = (data_mem_addr >= 'h1000_4000) && (data_mem_addr < 'h1000_4005);
       endcase
    end
 
-   logic addr_is_mtime = (first_byte >= 'h1000_bff8)
-	 && (last_byte < 'h1000_c000);
-
-   logic addr_is_mtimecmp = (first_byte >= 'h1000_4000)
-	 && (last_byte < 'h1000_4008);
-
-   assign data_mem_claim = addr_is_mtime | addr_is_mtimecmp;
-
-   // Expose mtime bytes for convenience
-   logic [7:0] mtime_bytes[8];
-   assign mtime_bytes[0] = mtime[7:0];
-   assign mtime_bytes[1] = mtime[15:8];
-   assign mtime_bytes[2] = mtime[23:16];
-   assign mtime_bytes[3] = mtime[31:24];
-   assign mtime_bytes[4] = mtime[39:32];
-   assign mtime_bytes[5] = mtime[47:40];
-   assign mtime_bytes[6] = mtime[55:48];
-   assign mtime_bytes[7] = mtime[63:56];
-
-   // Expose mtime bytes for convenience
-   logic [7:0] mtimecmp_bytes[8];
-   assign mtimecmp_bytes[0] = mtimecmp[7:0];
-   assign mtimecmp_bytes[1] = mtimecmp[15:8];
-   assign mtimecmp_bytes[2] = mtimecmp[23:16];
-   assign mtimecmp_bytes[3] = mtimecmp[31:24];
-   assign mtimecmp_bytes[4] = mtimecmp[39:32];
-   assign mtimecmp_bytes[5] = mtimecmp[47:40];
-   assign mtimecmp_bytes[6] = mtimecmp[55:48];
-   assign mtimecmp_bytes[7] = mtimecmp[63:56];
+   assign data_mem_claim = addr_is_mtime || addr_is_mtimecmp;
    
-   // Expose data memory rdata bytes
-   logic [7:0] data_mem_rdata_bytes[4];
-   assign data_mem_rdata_bytes[0] = data_mem_rdata[7:0];
-   assign data_mem_rdata_bytes[1] = data_mem_rdata[15:8];
-   assign data_mem_rdata_bytes[2] = data_mem_rdata[23:16];
-   assign data_mem_rdata_bytes[3] = data_mem_rdata[31:24];
-   
+   // Map address range for mtime and mtimecmp
+   logic [3:0] start_addr;
    always_comb begin
-      data_mem_rdata = 0;
-      if(addr_is_mtime) begin
-	 
-      end else if(addr_is_mtimecmp) begin
-	 for (int n = first_byte; n < last_byte; n++) begin
-	    data_mem_rdata_bytes[n - first_byte] = mtime_bytes[n - 'h1000_4000];
-	 end
+      if (addr_is_mtime)
+	start_addr = data_mem_addr - 'h1000_bff8;
+      else if (addr_is_mtimecmp)
+	start_addr = data_mem_addr - 'h1000_4000;
+   end
+
+   // Map bytes of mtime/mtimecmp
+   logic [7:0] reg_bytes[8];
+   always_comb begin
+      reg_bytes = '{default: '0};
+      if (addr_is_mtime) begin
+	 reg_bytes[0] = mtime[0+:8];
+	 reg_bytes[1] = mtime[8+:8];
+	 reg_bytes[2] = mtime[16+:8];
+	 reg_bytes[3] = mtime[24+:8];
+	 reg_bytes[4] = mtime[32+:8];
+	 reg_bytes[5] = mtime[40+:8];
+	 reg_bytes[6] = mtime[48+:8];
+	 reg_bytes[7] = mtime[56+:8];
+      end else if (addr_is_mtimecmp) begin
+	 reg_bytes[0] = mtimecmp[0+:8];
+	 reg_bytes[1] = mtimecmp[8+:8];
+	 reg_bytes[2] = mtimecmp[16+:8];
+	 reg_bytes[3] = mtimecmp[24+:8];
+	 reg_bytes[4] = mtimecmp[32+:8];
+	 reg_bytes[5] = mtimecmp[40+:8];
+	 reg_bytes[6] = mtimecmp[48+:8];
+	 reg_bytes[7] = mtimecmp[56+:8];
+      end
+   end
+
+   // Map bytes of data_mem_rdata
+   logic [7:0] rdata_bytes[4];
+   assign rdata_bytes[0] = data_mem_rdata[0+:8];
+   assign rdata_bytes[1] = data_mem_rdata[8+:8];
+   assign rdata_bytes[2] = data_mem_rdata[16+:8];
+   assign rdata_bytes[3] = data_mem_rdata[24+:8];
+   
+   // Read mtime and mtimecmp
+   always_comb begin
+      if (addr_is_mtime) begin
+	 case (data_mem_width)
+	   0: begin
+	      rdata_bytes[0] = reg_bytes[start_addr]; 
+	   end
+	   1: begin
+	      rdata_bytes[0] = reg_bytes[start_addr]; 
+	      rdata_bytes[1] = reg_bytes[start_addr + 1];
+	   end
+	   2: begin
+	      rdata_bytes[0] = reg_bytes[start_addr]; 
+	      rdata_bytes[1] = reg_bytes[start_addr + 1];
+	      rdata_bytes[2] = reg_bytes[start_addr + 2];
+	      rdata_bytes[3] = reg_bytes[start_addr + 3];
+	   end
+	 endcase
       end
    end
 	 
