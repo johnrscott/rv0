@@ -6,65 +6,27 @@ module data_path
   (
   input 	clk,
   
-  /// External interrupt pending
-  input 	meip,
-
-  /// Whether a return-from-trap
-  /// should be performed
-  input 	mret,
-
-  /// Immediate generation
-  input [2:0] 	imm_gen_sel,
-  
-  /// Set main ALU behaviour
-  input [2:0] 	alu_arg_sel,
-
-  // For a load/store, what width to use
-  input [1:0] 	data_mem_width,
-
-  // Multiplexer control signals
-  input [1:0] 	pc_sel, 
-
-  // Trap controller
-  input [1:0] 	trap_ctrl_csr_wdata_sel,
-  
-  // Whether to write data back to the register
-  // file. This will be overridden if a trap
-  // occurs.
-  input 	register_file_write_en,
-  input [2:0] 	register_file_rd_data_sel,
-  
-  // Whether to write data to the data memory
-  // bus (for loads/stores). This will be
-  // overridden if a trap occurs.
-  input 	data_mem_write_en,
-
-  // Whether to write data to the CSR bus.
-  // Overridden if a trap occurs.
-  input 	csr_write_en,
-
-  // Set for transfer to trap (next pc selection)
-  input 	trap,
-
-  // If an exception was raised, what is the mcause
-  input [31:0] 	exception_mcause,
+  input 	meip, // External interrupt pending
+  input 	mret, // Whether a return-from-trap should be performed
+  input [2:0] 	imm_gen_sel, // choose how to extract immediate (instr format)
+  input [2:0] 	alu_arg_sel, // Set main ALU behaviour
+  input [1:0] 	data_mem_width, // For a load/store, what width to use
+  input [1:0] 	pc_sel, // how to choose next program counter
+  input [1:0] 	trap_ctrl_csr_wdata_sel, // pick CSR write data for trap control
+  input 	register_file_write_en, // whether to write to rd
+  input [2:0] 	register_file_rd_data_sel, // source for write to rd
+  input 	data_mem_write_en, // whether to write data to data memory bus
+  input 	csr_write_en, // whether to write data to CSR bus
+  input 	trap, // should control transfer to trap vector on next clk
+  input [31:0] 	exception_mcause, // If an exception was raised, what is mcause
 		 
-  // Fetched instruction for use by the
-  // control unit.
-  output [31:0] instr,
-
-  // Exception flags
-  output 	illegal_instr,
-  output 	instr_addr_mis, 
-  output 	instr_access_fault,
-
-  // Interrupt flag
-  output 	interrupt,
-		 
-  // Bus claim signals, used to trigger
-  // load/store access faults
-  output 	data_mem_claim, csr_claim
-		 
+  output [31:0] instr, // instruction at current program counter
+  output 	illegal_instr, // illegal instruction exception
+  output 	instr_addr_mis, // instruction address misaligned
+  output 	instr_access_fault, // instruction access fault
+  output 	interrupt, // is an interrupt pending?	 
+  output 	data_mem_claim, // has any device claimed data read/write?
+  output 	csr_claim // has any device claimed CSR bus read/write?
   );
 
    // Fixed instruction fields
