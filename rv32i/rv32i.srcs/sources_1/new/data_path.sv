@@ -140,7 +140,7 @@ module data_path(
    // CSR bus
    wire [11:0] csr_addr;
    wire [31:0] csr_wdata;
-   wire        csr_write_en;
+   //wire        csr_write_en;
    wire [31:0] csr_rdata;
    //wire        csr_claim;
 

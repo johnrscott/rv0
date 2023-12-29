@@ -117,11 +117,18 @@ module timer_int(
 
    // Map bytes of data_mem_rdata
    logic [7:0] rdata_bytes[4];
-   assign rdata_bytes[0] = data_mem_rdata[0+:8];
-   assign rdata_bytes[1] = data_mem_rdata[8+:8];
-   assign rdata_bytes[2] = data_mem_rdata[16+:8];
-   assign rdata_bytes[3] = data_mem_rdata[24+:8];
-   
+
+   // Only read if the address is valid, otherwise output 0
+   always_comb begin
+      if (data_mem_claim) begin
+	 data_mem_rdata[0+:8] = rdata_bytes[0];
+	 data_mem_rdata[8+:8] = rdata_bytes[1];
+	 data_mem_rdata[16+:8] = rdata_bytes[2];
+	 data_mem_rdata[24+:8] = rdata_bytes[3];
+      end else
+	data_mem_rdata = 0;
+   end
+      
    // Read mtime and mtimecmp
    always_comb begin
       if (addr_is_mtime) begin
