@@ -13,11 +13,13 @@
 /// An InstructionAccessFault exception is raised if the pc is 
 /// out of range for the valid program memory addresses.
 ///
-module instr_mem(
+module instr_mem
+  #(parameter string ROM_FILE)
+   (
   input [31:0] 	pc, // current pc
   output [31:0] instr, // the instruction at pc
   output 	instr_access_fault // raised for out-of-range pc
-  );
+		     );
    
    logic [31:0] instr_words[256];
 
@@ -25,7 +27,7 @@ module instr_mem(
    initial begin
       instr_words = '{default: '0};
       $display("Loading rom.");
-      $readmemh("rom_image.mem", instr_words);
+      $readmemh(ROM_FILE, instr_words);
    end
    
    // Extract word address form program counter (ignoring

@@ -1,7 +1,9 @@
 `timescale 1ns / 1ps
 
 /// Data path
-module data_path(
+module data_path
+  #(parameter string ROM_FILE)
+  (
   input 	clk,
   
   /// External interrupt pending
@@ -196,12 +198,12 @@ module data_path(
      );
      
    // Instruction memory
-   instr_mem instr_mem_0(
+   instr_mem #(.ROM_FILE(ROM_FILE)) instr_mem_0 (
      .pc(pc),
      .instr(instr),
      .instr_access_fault(instr_access_fault)
      );
-
+   
    // Main memory
    main_mem main_mem_0(
      .data_mem_addr(data_mem_addr),

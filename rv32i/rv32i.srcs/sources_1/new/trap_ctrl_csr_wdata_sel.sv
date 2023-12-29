@@ -16,4 +16,7 @@ module trap_ctrl_csr_wdata_sel(
        output [31:0] csr_wdata
        );
 
+   // stub implementation
+   assign csr_wdata = 0;
+   
 endmodule

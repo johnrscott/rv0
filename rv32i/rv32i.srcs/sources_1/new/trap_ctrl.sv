@@ -122,4 +122,14 @@ module trap_ctrl(
 	output 	      illegal_instr // 1 if illegal instruction should be raised
 	);
 
+   // Stub implementation
+   assign interrupt = 0;
+   assign mepc = 0;
+   assign trap_vector = 0;
+   assign data_mem_rdata = 0;
+   assign data_mem_claim = 0;
+   assign csr_rdata = 0;
+   assign csr_claim = 0;
+   assign illegal_instr = 0;
+   
 endmodule
