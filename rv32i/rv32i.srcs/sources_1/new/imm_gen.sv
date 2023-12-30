@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+import types::rv32_instr_t;
 
 /// Extract an immediate encoded in the instruction
 ///
@@ -20,23 +20,27 @@
 /// 101: { 27{1'b0}, instr[24:20] }, Zicsr
 ///
 module imm_gen(
-  input [2:0]	    sel, // Set immediate to extract
-  input [31:0] 	    instr, // Current instruction
-  output reg [31:0] imm // Output 32-bit immediate
-  );
+   input [2:0]	     sel, // Set immediate to extract
+   rv32_instr_t instr, // Current instruction
+   output bit [31:0] imm  // Output 32-bit immediate
+);
 
-   always @* begin
+   always_comb begin
       case(sel)
-	   3'b000: imm = { {21{instr[31]}}, instr[30:20] };
-	   3'b001: imm = { {21{instr[31]}}, {instr[30:25]}, instr[11:7] };
-	   3'b010: imm = { {20{instr[31]}}, instr[7],
-	       instr[30:25], instr[11:8], 1'b0 };
-	   3'b011: imm = { instr[31:12], {12{1'b0}} };
-	   3'b100: imm = { {12{instr[31]}}, instr[19:12],
-	       instr[20], instr[30:21], 1'b0 };
-	   3'b101: imm = { {27{1'b0}}, instr[24:20]};
-	   default: imm = 0;
-      endcase // case (sel)
+	3'b000:
+	  imm = 32'(signed'(instr.i_type.imm11_0));
+	3'b001:
+	  imm = 32'(signed'({ instr.s_type.imm11_5, instr.s_type.imm4_0 }));
+	3'b010:
+	  imm = 32'(signed'({ instr[7], instr[30:25], instr[11:8], 1'b0 }));
+	3'b011:
+	  imm = instr[31:12] << 12;
+	3'b100:
+	  imm = 32'(signed'({ instr[19:12], instr[20], instr[30:21], 1'b0 }));
+	3'b101:
+	  imm = instr[24:20]; // zero-extended
+	default: imm = 0;
+      endcase
    end
 
 endmodule
