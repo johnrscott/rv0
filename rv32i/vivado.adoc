@@ -4,4 +4,12 @@ This document contains notes on using SystemVerilog in Xilinx Vivado for simulat
 
 == SystemVerilog Compilation Units
 
-SystemVerilog supports compilation of multiple files at the same time, which creates a scope for sharing definitions of user defined types. In Vivado, compilation units are defined by libraries (see https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/Compilation-Units[here]). By default, all sources are in the same library (with a name like `xil_defaultlib`). 
+SystemVerilog supports compilation of multiple files at the same time, which creates a scope for sharing definitions of user defined types. In Vivado, compilation units are defined by libraries (see https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/Compilation-Units[here]). By default, all sources are in the same library (with a name like `xil_defaultlib`).
+
+However, when attempting to place a typedef struct in a separate file to a module, Vivado synthesis gives an error saying the struct has not been declared.
+
+Putting the struct typedef inside a package, and then importing the struct wherever it is used, does work.
+
+It is not clear whether the issue was the code used to test the compilation unit, or whether Vivado does not support compilation units (in favour of requiring packages instead).
+
+NOTE: It is possible to define an interface in one file, and instantiate it in a separate file (interfaces cannot go in packages) -- this makes it seem like the compilation unit idea is working.

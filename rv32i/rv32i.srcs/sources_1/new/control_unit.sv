@@ -1,6 +1,3 @@
-import types::control_lines_t;
-import types::data_path_status_t;
-
 /// CPU Control Unit
 ///
 /// The control unit is a purely combinational
@@ -21,9 +18,8 @@ import types::data_path_status_t;
 ///
 ///
 module control_unit(
-   input	data_path_status_t data_path_status,
-   output	control_lines_t control_lines
-  );
+   control_bus.control bus
+);
 
    // Different instruction classes
    enum 	{
@@ -35,14 +31,14 @@ module control_unit(
    always_comb begin
       
       // Set all control signals to default values
-      control_lines = '{default: 0};
+      bus.control_lines = '{default: 0};
       
       case (instr_type)
 	PRIV:;
 	UP_IMM: begin
 	   // lui and auipc
-	   control_lines.register_file_write_en = 1;
-	   control_lines.register_file_rd_data_sel = 3'b100;
+	   bus.control_lines.register_file_write_en = 1;
+	   bus.control_lines.register_file_rd_data_sel = 3'b100;
 	end
 	REG_REG:;
 	REG_IMM:;

@@ -5,11 +5,16 @@ import types::data_path_status_t;
 module data_path #(parameter string ROM_FILE) (
    input  clk,
    input  meip,	// External interrupt pending
-   
-   input  control_lines_t control_lines,
-   output data_path_status_t data_path_status
+
+   control_bus.status bus
 );
 
+   control_lines_t control_lines;
+   data_path_status_t data_path_status;
+
+   assign control_lines = bus.control_lines;
+   assign data_path_status = bus.data_path_status;
+   
    // Fixed instruction fields
    wire [6:0]  opcode;
    wire [4:0]  rd, rs1, rs2;
