@@ -1,0 +1,7 @@
+= Vivado Toolchain Notes
+
+This document contains notes on using SystemVerilog in Xilinx Vivado for simulation and synthesis for FPGAs.
+
+== SystemVerilog Compilation Units
+
+SystemVerilog supports compilation of multiple files at the same time, which creates a scope for sharing definitions of user defined types. In Vivado, compilation units are defined by libraries (see https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/Compilation-Units[here]). By default, all sources are in the same library (with a name like `xil_defaultlib`). 

@@ -1,20 +1,13 @@
-`timescale 1ns / 1ps
+import types::control_lines_t;
+import types::data_path_status_t;
 
 /// Data path
 module data_path #(parameter string ROM_FILE) (
-   input	 clk,
+   input  clk,
+   input  meip,	// External interrupt pending
    
-   input	 meip,				// External interrupt pending
-
-   input	 control_lines_t control_lines,	// control lines 
-		 
-   output [31:0] instr,				// instruction at current program counter
-   output	 illegal_instr,			// illegal instruction exception
-   output	 instr_addr_mis,		// instruction address misaligned
-   output	 instr_access_fault,		// instruction access fault
-   output	 interrupt,			// is an interrupt pending?	 
-   output	 data_mem_claim,		// has any device claimed data read/write?
-   output	 csr_claim			// has any device claimed CSR bus read/write?
+   input  control_lines_t control_lines,
+   output data_path_status_t data_path_status
 );
 
    // Fixed instruction fields
@@ -59,9 +52,10 @@ module data_path #(parameter string ROM_FILE) (
       .trap(control_lines.trap),
       .pc(pc),
       .pc_plus_4(pc_plus_4),
-      .instr_addr_mis(instr_addr_mis)
+      .instr_addr_mis(data_path_status.instr_addr_mis)
     );
 
+   bit [31:0] instr;
    assign opcode = instr[6:0];
    assign rd = instr[11:7];
    assign funct3 = instr[14:12];
@@ -70,6 +64,8 @@ module data_path #(parameter string ROM_FILE) (
    assign funct7 = instr[31:25];
    assign uimm = rs1;
 
+   assign data_path_status.instr = instr;
+   
    assign alu_op = { instr[30], funct3 };
    
    // Data memory bus
@@ -82,8 +78,8 @@ module data_path #(parameter string ROM_FILE) (
    
    assign data_mem_addr = main_alu_result;
    assign data_mem_wdata = rs1_data;
-   assign data_mem_claim = data_mem_claim_trap_ctrl |
-			   data_mem_claim_main_mem;
+   assign data_path_status.data_mem_claim = data_mem_claim_trap_ctrl |
+					    data_mem_claim_main_mem;
    
    // Combine outputs from all data memory bus devices
    assign data_mem_rdata = data_mem_rdata_trap_ctrl |
@@ -100,13 +96,13 @@ module data_path #(parameter string ROM_FILE) (
    // Combine outputs from all CSR devices
    assign csr_rdata = csr_rdata_trap_ctrl;
 
-   assign csr_claim = csr_claim_trap_ctrl;
+   assign data_path_status.csr_claim = csr_claim_trap_ctrl;
    
    // Derive exception flags from individual modules. If
    // no device on the CSR bus "claims" the read/write, then
    // that CSR does not exist and an illegal instruction is
    // raised   
-   assign illegal_instr = illegal_instr_trap_ctrl;
+   assign data_path_status.illegal_instr = illegal_instr_trap_ctrl;
 
    // CSR write data for trap controller
    trap_ctrl_csr_wdata_sel trap_ctrl_csr_wdata_sel_0(
@@ -126,7 +122,7 @@ module data_path #(parameter string ROM_FILE) (
      .trap(trap),
      .exception_mcause(control_lines.exception_mcause),
      .pc(pc),
-     .interrupt(interrupt),
+     .interrupt(data_path_status.interrupt),
      .mepc(mepc),
      .trap_vector(trap_vector),
 	 
@@ -151,7 +147,7 @@ module data_path #(parameter string ROM_FILE) (
    instr_mem #(.ROM_FILE(ROM_FILE)) instr_mem_0 (
      .pc(pc),
      .instr(instr),
-     .instr_access_fault(instr_access_fault)
+     .instr_access_fault(data_path_status.instr_access_fault)
      );
    
    // Main memory
@@ -197,5 +193,5 @@ module data_path #(parameter string ROM_FILE) (
      .main_alu_result(main_alu_result),
      .main_alu_zero(main_alu_zero)
      );
-   
+
 endmodule
