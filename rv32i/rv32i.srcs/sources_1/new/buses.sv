@@ -17,3 +17,14 @@ interface control_bus();
    );
    
 endinterface: control_bus
+
+interface data_mem_bus();
+
+   bit [31:0] addr;
+   bit [1:0]  width;
+   bit [31:0] rdata;
+   bit [31:0] wdata;
+   bit	      claim;
+
+
+endinterface: data_mem_bus
