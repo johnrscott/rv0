@@ -28,9 +28,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    wire [31:0] rd_data, rs1_data, rs2_data;
    
    // Trap controller signals
-   wire [31:0] mcause, mepc, trap_vector, csr_rdata_trap_ctrl,
-	       csr_wdata_trap_ctrl;
-   wire	       csr_claim_trap_ctrl;
+   wire [31:0] mcause, mepc, trap_vector;
    
    // Program counter signals
    wire [31:0] pc, pc_plus_4;
@@ -64,7 +62,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .claim(data_path_status.data_mem_claim),
       .addr(main_alu_result),
       .width(control_lines.data_mem_width),
-      .wdata(rs1_data)
+      .wdata(rs2_data)
    );
    
    wire [31:0] csr_rdata;
@@ -77,19 +75,12 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .claim(data_path_status.csr_claim)
    );
    
-   // Derive exception flags from individual modules. If
-   // no device on the CSR bus "claims" the read/write, then
-   // that CSR does not exist and an illegal instruction is
-   // raised -- NOW, THIS WILL BE DONE IN THE CONTROL UNIT
-   // BASED ON THE CSR CLAIM FLAG    
-   //assign data_path_status.illegal_instr = illegal_instr_trap_ctrl;
-   
    // Select CSR write data source
    csr_wdata_sel csr_wdata_sel(
-      .sel(control_lines.trap_ctrl_csr_wdata_sel),
+      .sel(control_lines.csr_wdata_sel),
       .rs1_data,
       .main_alu_result,
-      .uimm(imm[4:0]),
+      .imm,
       .csr_wdata
    );
    

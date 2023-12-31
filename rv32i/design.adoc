@@ -327,6 +327,12 @@ The devices on the bus are:
 * Any memory-mapped CSRs (in particular, the timer interrupt controller)
 * Any memory-mapped peripherals
 
+The data memory bus is only used for loads and stores (instruction fetch does not use this bus in this design).
+
+For both load and store instructions, the address is calculated by the ALU, so the `addr` line is hardwired to the main ALU output. The `width` field depends on the instruction, and is driven by the control unit. The `write_en` line is set only for store instructions. The `wdata` field is hardwired to `rs2_data`, which is the only source for writes to data memory.
+
+The `claim` output is used by the control unit to potentially raise load/store access faults. The `rdata` output is hardwired to the register file wrapper, which is the only user of data memory bus data (load instructions).
+
 === CSR Bus
 
 The CSR bus is similar to the data memory bus:
@@ -344,6 +350,30 @@ endinterface
 ----
 
 Exactly one CSR device attached to the bus will be responsible for asserting the claim signal, and either writing data or returning data. The other devices return zero on the `rdata` line. All the `rdata` lines for each device are ORed together to generate the bus `rdata` signal (and the same for the bus `claim` signal).
+
+Only Zicsr instructions interact with the CSR bus. The `addr` input always comes from a fixed position in the instruction, and is hardwired there. The `write_en` input is set by the control unit. The data written back to the CSR comes from either `rs1_data`, the main ALU output, or the `uimm` field of the instruction (via the immediate generation module). The module selecting the resulting value for `wdata` is:
+
+[,verilog]
+----
+/// CSR write data source selection
+///
+/// Depending on the value of sel, the CSR write data
+/// source is chosen as follows:
+/// 
+/// 00: rs1_data, for csrrw
+/// 01: main_alu_result, for csrrs, csrrc, csrrsi, csrrci
+/// 10: { imm }, for csrrwi
+///
+module csr_wdata_sel(
+       input sel,
+       input [31:0] rs1_data, // from the register file
+       input [31:0] main_alu_result, // from the main ALU
+       input [31:0] imm, // uimm, from immediate generator
+       output [31:0] csr_wdata // to the CSR bus
+       );
+----
+
+The output `rdata` from the CSR bus is routed to the register file wrapper (`csr_rdata`), for writing to `rd`, and is also routed to main ALU wrapper for use in computations that write back to the CSR. The `csr_claim` signal is returned to the control unit, to check for illegal instruction (on missing CSR).
 
 == OLD VERSION BELOW
 
@@ -1019,27 +1049,6 @@ The `rd_data` signal for writing to `rd` is selected from multiple sources depen
 
 
 === Trap controller CSR write data
-
-For CSR instructions, the data written back to the CSR comes from either `rs1_data`, the main ALU output, or the `uimm` field of the instruction. The module deciding which to use is:
-
-[,verilog]
-----
-/// Trap controller CSR write data source selection
-///
-/// Depending on the value of sel, the CSR write data
-/// source is chosen as follows:
-/// 00: rs1_data, for csrrw
-/// 01: main_alu_r, for csrrs, csrrc, csrrsi, csrrci
-/// 10: { 27'b0, uimm }, for csrrwi
-///
-module trap_ctrl_csr_wdata_sel(
-       input sel,
-       input [31:0] rs1_data,
-       input [31:0] main_alu_r,
-       input [4:0] uimm,
-       output [31:0] csr_wdata
-       );
-----
 
 
 === Immediate generation for ALU operand `b`
