@@ -296,7 +296,35 @@ module register_file_wrapper(
     );
 ----
 
+=== Data Memory Bus
 
+The design will use a simple bus for accesses to data memory (the target for loads and stores). Using a bus allows separate devices (e.g. main memory, and I/O devices) to be separated into different modules.
+
+Instead of using an enable signal to pick which device is active on the bus, each device will determine whether it should handle the read or write, by setting a "claim" signal. The read outputs from all the devices are ORed together, and devices not claiming the signal set their output to zero.
+
+The claim signals from all the devices are ORed together. On a read or write, this signal can be used to check that at least one device will handle the request. If no device will handle the request, a load/store access fault can be raised.
+
+The (logical) bus interface is as follows:
+
+[,verilog]
+----
+interface data_mem_bus();
+   bit [31:0] addr; // the read/write address
+   bit [1:0]  width; // the width of the read/write (byte, halfword, word)
+   bit [31:0] rdata; // read-data returned from device
+   bit [31:0] wdata; // write-data passed to device
+   bit	      write_en; // whether to perform a write (or just a read)
+   bit	      claim; // devices will claim read/write based on address/width
+endinterface
+----
+
+The OR logic for `claim` and `rdata` will be handled using modports, one per device (and one for the host).
+
+The devices on the bus are:
+
+* The main memory module (RAM)
+* Any memory-mapped CSRs (in particular, the timer interrupt controller)
+* Any memory-mapped peripherals
 
 == OLD VERSION BELOW
 

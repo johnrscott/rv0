@@ -20,11 +20,12 @@ endinterface: control_bus
 
 interface data_mem_bus();
 
-   bit [31:0] addr;
-   bit [1:0]  width;
-   bit [31:0] rdata;
-   bit [31:0] wdata;
-   bit	      claim;
+   bit [31:0] addr; // the read/write address
+   bit [1:0]  width; // the width of the read/write (byte, halfword, word)
+   bit [31:0] rdata; // read-data returned from device
+   bit [31:0] wdata; // write-data passed to device
+   bit	      write_en; // whether to perform a write (or just a read)
+   bit	      claim; // devices will claim read/write based on address/width
 
 
 endinterface: data_mem_bus
