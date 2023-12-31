@@ -21,40 +21,42 @@ endinterface: control_bus
 interface data_mem_bus #(
    parameter NUM_DEVICES = 2
 ) (
-   
+   output bit [31:0] rdata,
+   output bit	     claim,
+   input bit [31:0]  addr, wdata,
+   input bit [1:0]   width,
+   input bit	     write_en
 );
 
-   bit [31:0] addr;
-   bit [1:0]  width;
-   bit [31:0] rdata[NUM_DEVICES];
-   bit [31:0] wdata;
-   bit	      write_en;
-   bit	      claim[NUM_DEVICES];
+   bit [31:0] dev_rdata[NUM_DEVICES];
+   bit	      dev_claim[NUM_DEVICES];
 
    // Expect all devices except the one that asserts
    // claim to set zero rdata output. OR together all
    // the read-data ports to get the main bus rdata.
-   bit [31:0] rdata_all;
-   assign rdata_all = rdata.or();
+   always_comb begin
+      rdata = 0;
+      for (int n = 0; n < NUM_DEVICES; n++) begin
+	 rdata |= dev_rdata[n];
+      end
+   end
 
    // Expect only one device to assert the claim signal.
    // OR together the claim signals from each device
    // to get the main bus claim signal (used to determine
    // if any device responded to the read/write request).
-   bit claim_all;
-   assign claim_all = claim.or();
+   always_comb begin
+      claim = 0;
+      for (int n = 0; n < NUM_DEVICES; n++) begin
+	 claim |= dev_claim[n];
+      end
+   end
    
-   // Bus controller interface
-   modport host (
-      output addr, width, wdata, write_en,
-      input  .rdata(rdata_all), .claim(claim_all)
-   );
-
    // Device interfaces
    generate
-      for (genvar n = 0; n < NUM_DEVICES; n++) begin
+      for (genvar n = 0; n < NUM_DEVICES; n++) begin: dev
 	 modport device (
-	    output .rdata(rdata[n]), .claim(claim[n]),
+	    output .rdata(dev_rdata[n]), .claim(dev_claim[n]),
 	    input  addr, width, wdata, write_en
 	 );
       end

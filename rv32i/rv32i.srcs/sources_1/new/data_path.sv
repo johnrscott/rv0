@@ -2,7 +2,7 @@ import types::control_lines_t;
 import types::data_path_status_t;
 
 /// Data path
-module data_path #(parameter string ROM_FILE) (
+module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    input  clk,
    input  meip,	// External interrupt pending
 
@@ -34,14 +34,9 @@ module data_path #(parameter string ROM_FILE) (
    wire [31:0] rd_data, rs1_data, rs2_data;
 
    // Trap controller signals
-   wire [31:0] mcause, mepc, trap_vector,
-	       data_mem_rdata_trap_ctrl, csr_rdata_trap_ctrl,
+   wire [31:0] mcause, mepc, trap_vector, csr_rdata_trap_ctrl,
 	       csr_wdata_trap_ctrl;
-   wire        data_mem_claim_trap_ctrl, csr_claim_trap_ctrl;
-
-   // Main memory signals
-   wire [31:0] data_mem_rdata_main_mem;
-   wire        data_mem_claim_main_mem;
+   wire        csr_claim_trap_ctrl;
    
    // Program counter signals
    wire [31:0] pc, pc_plus_4;
@@ -72,19 +67,17 @@ module data_path #(parameter string ROM_FILE) (
    assign data_path_status.instr = instr;
    
    assign alu_op = { instr[30], funct3 };
+
+   bit [31:0] data_mem_rdata;
    
    // Data memory bus
-   data_mem_bus dm_bus #(.NUM_DEVICES(2))();
-   
-   assign dm_bus.addr = main_alu_result;
-   assign dm_bus.wdata = rs1_data;
-   
-   assign data_path_status.data_mem_claim = data_mem_claim_trap_ctrl |
-					    data_mem_claim_main_mem;
-   
-   // Combine outputs from all data memory bus devices
-   assign data_mem_rdata = data_mem_rdata_trap_ctrl |
-			   data_mem_rdata_main_mem;
+   data_mem_bus #(.NUM_DEVICES(2)) dm_bus (
+      .rdata(data_mem_rdata),
+      .claim(data_path_status.data_mem_claim),
+      .addr(main_alu_result),
+      .width(control_lines.data_mem_width),
+      .wdata(rs1_data)
+   );
    
    // CSR bus
    wire [11:0] csr_addr;
@@ -119,7 +112,7 @@ module data_path #(parameter string ROM_FILE) (
       .clk,
       .meip,
       .mret(control_lines.mret),
-      .trap,
+      .trap(control_lines.trap),
       .exception_mcause(control_lines.exception_mcause),
       .pc,
       .interrupt(data_path_status.interrupt),
@@ -127,13 +120,8 @@ module data_path #(parameter string ROM_FILE) (
       .trap_vector,
       
       // Data memory bus
-      .data_mem_addr(data_mem_addr),
-      .data_mem_width(control_lines.data_mem_width),
-      .data_mem_wdata(data_mem_wdata),
-      .data_mem_write_en(control_lines.data_mem_write_en),
-      .data_mem_rdata(data_mem_rdata_trap_ctrl),
-      .data_mem_claim(data_mem_claim_trap_ctrl),
-      
+      .dm_bus(dm_bus.dev[0].device),
+     
       // CSR bus
       .csr_addr(csr_addr),
       .csr_wdata(csr_wdata_trap_ctrl),
