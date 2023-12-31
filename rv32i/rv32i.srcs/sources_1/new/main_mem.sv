@@ -29,83 +29,77 @@
 ///
 /// Reads and writes do not need to be aligned.
 module main_mem(
-  input clk,
-  input [31:0] 	data_mem_addr, // the read/write address bus 
-  input [1:0] 	data_mem_width, /// the width of the read/write
-  input [31:0] 	data_mem_wdata, // data to be written on rising clock edge
-  input 	data_mem_write_en, // 1 to perform write, 0 otherwise
-  output [31:0] data_mem_rdata, // data out	
-  output 	data_mem_claim // set if this module performed the read/write
-  );
-  
-    reg [7:0] mem_bytes[1024] = '{default: '0};    
-    
-    reg [31:0] rdata_internal;
-    
-    // First byte to read/write in mem_bytes
-    wire [9:0] first_byte;
-    
-    // Last byte to read/write
-    reg [9:0] last_byte;
-    
-    assign first_byte = data_mem_addr[9:0];
-     
-    // Calculate the last byte address and check
-    // that the read/write is entirely inside
-    // the valid address range
-    always @* begin
-        last_byte = first_byte;
-        case(data_mem_width)
-            1: last_byte = first_byte + 1;
-            2: last_byte = first_byte + 3;
-        endcase
-    end
-     
-    // Calculate real address and read data 
-    always @* begin
-        rdata_internal = { 24'd0, mem_bytes[first_byte] };
-        case(data_mem_width)
-            1: begin
-                rdata_internal[7:0] = mem_bytes[first_byte];
-                rdata_internal[15:8] = mem_bytes[first_byte + 1];
-                
-            end
-            2: begin
-                rdata_internal[7:0] = mem_bytes[first_byte];
-                rdata_internal[15:8] = mem_bytes[first_byte + 1];
-                rdata_internal[23:16] = mem_bytes[first_byte + 2];
-                rdata_internal[31:24] = mem_bytes[first_byte + 3];
-            end
-        endcase
-    end
-
-    // Write data provided the address is in range and write is
-    // enabled
-    always @(posedge clk) begin
-        if(data_mem_claim && data_mem_write_en) begin
-            mem_bytes[first_byte] = data_mem_wdata[7:0];
-            case(data_mem_width) 
-                1: begin
-                    mem_bytes[first_byte] = data_mem_wdata[7:0];
-                    mem_bytes[first_byte + 1] = data_mem_wdata[15:8];
-                end
-                2: begin
-                    mem_bytes[first_byte] = data_mem_wdata[7:0];
-                    mem_bytes[first_byte + 1] = data_mem_wdata[15:8];         
-                    mem_bytes[first_byte + 2] = data_mem_wdata[23:16];
-                    mem_bytes[first_byte + 3] = data_mem_wdata[31:24];         
-                end
-            endcase        
+   data_mem_bus bus
+);
+   
+   reg [7:0] mem_bytes[1024] = '{default: '0};    
+   
+   reg [31:0] rdata_internal;
+   
+   // First byte to read/write in mem_bytes
+   wire [9:0] first_byte;
+   
+   // Last byte to read/write
+   reg [9:0]  last_byte;
+   
+   assign first_byte = bus.addr[9:0];
+   
+   // Calculate the last byte address and check
+   // that the read/write is entirely inside
+   // the valid address range
+   always @* begin
+      last_byte = first_byte;
+      case(bus.width)
+        1: last_byte = first_byte + 1;
+        2: last_byte = first_byte + 3;
+      endcase
+   end
+   
+   // Calculate real address and read data 
+   always @* begin
+      rdata_internal = { 24'd0, mem_bytes[first_byte] };
+      case(bus.width)
+        1: begin
+           rdata_internal[7:0] = mem_bytes[first_byte];
+           rdata_internal[15:8] = mem_bytes[first_byte + 1];
+           
         end
-    end
-
-    // The read/write is only valid if the
-    // upper 22 bits of data_mem_addr are
-    // correct, and last_byte is larger
-    // than first_byte.
-    assign data_mem_claim = (data_mem_addr[31:10] == 'h8000_0) && (first_byte <= last_byte);
-    
-    // Set the output read data only if data_mem_claim is set
-    assign data_mem_rdata = data_mem_claim ? rdata_internal : 0;
-
+        2: begin
+           rdata_internal[7:0] = mem_bytes[first_byte];
+           rdata_internal[15:8] = mem_bytes[first_byte + 1];
+           rdata_internal[23:16] = mem_bytes[first_byte + 2];
+           rdata_internal[31:24] = mem_bytes[first_byte + 3];
+        end
+      endcase
+   end
+   
+   // Write data provided the address is in range and write is
+   // enabled
+   always @(posedge bus.clk) begin
+      if(bus.claim && bus.write_en) begin
+         mem_bytes[first_byte] = bus.wdata[7:0];
+         case(bus.width) 
+           1: begin
+              mem_bytes[first_byte] = bus.wdata[7:0];
+              mem_bytes[first_byte + 1] = bus.wdata[15:8];
+           end
+           2: begin
+              mem_bytes[first_byte] = bus.wdata[7:0];
+              mem_bytes[first_byte + 1] = bus.wdata[15:8];         
+              mem_bytes[first_byte + 2] = bus.wdata[23:16];
+              mem_bytes[first_byte + 3] = bus.wdata[31:24];         
+           end
+         endcase        
+      end
+   end
+   
+   // The read/write is only valid if the
+   // upper 22 bits of data_mem_addr are
+   // correct, and last_byte is larger
+   // than first_byte.
+   assign bus.claim = (bus.addr[31:10] == 'h8000_0) && (first_byte <= last_byte);
+   
+   // Set the output read data only if data_mem_claim is set
+   assign bus.rdata = bus.claim ? rdata_internal : 0;
+   
 endmodule

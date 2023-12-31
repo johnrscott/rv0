@@ -25,7 +25,8 @@ interface data_mem_bus #(
    output bit	     claim,
    input bit [31:0]  addr, wdata,
    input bit [1:0]   width,
-   input bit	     write_en
+   input bit	     write_en,
+   input bit	     clk
 );
 
    bit [31:0] dev_rdata[NUM_DEVICES];
@@ -57,9 +58,56 @@ interface data_mem_bus #(
       for (genvar n = 0; n < NUM_DEVICES; n++) begin: dev
 	 modport device (
 	    output .rdata(dev_rdata[n]), .claim(dev_claim[n]),
-	    input  addr, width, wdata, write_en
+	    input  addr, width, wdata, write_en, clk
 	 );
       end
    endgenerate
    
 endinterface: data_mem_bus
+
+interface csr_bus #(
+   parameter NUM_DEVICES = 2
+) (
+   output bit	     claim,
+   output bit [31:0] rdata,
+   input [11:0]	     addr,
+   input bit [31:0]  wdata,
+   input bit	     write_en,
+   input bit	     clk
+);
+
+   bit [31:0] dev_rdata[NUM_DEVICES];
+   bit	      dev_claim[NUM_DEVICES];
+
+   // Expect all devices except the one that asserts
+   // claim to set zero rdata output. OR together all
+   // the read-data ports to get the main bus rdata.
+   always_comb begin
+      rdata = 0;
+      for (int n = 0; n < NUM_DEVICES; n++) begin
+	 rdata |= dev_rdata[n];
+      end
+   end
+
+   // Expect only one device to assert the claim signal.
+   // OR together the claim signals from each device
+   // to get the main bus claim signal (used to determine
+   // if any device responded to the read/write request).
+   always_comb begin
+      claim = 0;
+      for (int n = 0; n < NUM_DEVICES; n++) begin
+	 claim |= dev_claim[n];
+      end
+   end
+   
+   // Device interfaces
+   generate
+      for (genvar n = 0; n < NUM_DEVICES; n++) begin: dev
+	 modport device (
+	    output .rdata(dev_rdata[n]), .claim(dev_claim[n]),
+	    input  addr, wdata, write_en, clk
+	 );
+      end
+   endgenerate
+   
+endinterface: csr_bus

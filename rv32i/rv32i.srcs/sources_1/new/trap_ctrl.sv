@@ -93,28 +93,21 @@
 /// the next_pc_sel multiplexer to set the return address.)
 ///
 module trap_ctrl(
-       	input	      clk,		// clock for updating registers
+   input	 clk,		   // clock for updating registers
 	
-	input	      meip,		// external interrupt source (from PLIC)
-	input	      mret,		// set to perform a return from trap
-	input	      trap,		// has a trap occurred 
-	input [31:0]  exception_mcause,	// the cause of the exception
-	input [31:0]  pc,		// used for setting mepc on exception
+   input	 meip,		   // external interrupt source (from PLIC)
+   input	 mret,		   // set to perform a return from trap
+   input	 trap,		   // has a trap occurred 
+   input [31:0]	 exception_mcause, // the cause of the exception
+   input [31:0]	 pc,		   // used for setting mepc on exception
 	
-	output	      interrupt,	// set if an interrupt is detected
-	output [31:0] mepc,		// exception pc for use by next_pc_sel
-	output [31:0] trap_vector,	// next pc to use if a trap occurs
-		      
-	data_mem_bus dm_bus, // Data memory bus (device modport)
+   output	 interrupt,	   // set if an interrupt is detected
+   output [31:0] mepc,		   // exception pc for use by next_pc_sel
+   output [31:0] trap_vector,	   // next pc to use if a trap occurs
    
-	// CSR bus read/write port
-	input [11:0]  csr_addr,		// CSR address. Used to claim a CSR read/write.
-	input [31:0]  csr_wdata,	// data to write to the CSR
-	input	      csr_write_en,	// 1 to write on rising clock edge
-	output [31:0] csr_rdata,	// CSR read data
-	output	      csr_claim,	// 1 if this module owns the CSR addr
-	output	      illegal_instr	// 1 if illegal instruction should be raised
-	);
+   data_mem_bus dm_bus, // Data memory bus (device modport)
+   csr_bus csr_bus // CSR bus read/write port (device modport)
+);
 
    // Stub implementation
    assign interrupt = 0;
@@ -122,8 +115,6 @@ module trap_ctrl(
    assign trap_vector = 0;
    assign data_mem_rdata = 0;
    assign data_mem_claim = 0;
-   assign csr_rdata = 0;
-   assign csr_claim = 0;
    assign illegal_instr = 0;
    
 endmodule

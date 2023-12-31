@@ -19,7 +19,7 @@ package types;
    /// Data path outputs for control unit
    typedef struct {
       bit [31:0] instr;				// instruction at current program counter
-      bit	 illegal_instr;			// illegal instruction exception
+      //bit	 illegal_instr;			// illegal instruction exception
       bit	 instr_addr_mis;		// instruction address misaligned
       bit	 instr_access_fault;		// instruction access fault
       bit	 interrupt;			// is an interrupt pending?	 

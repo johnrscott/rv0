@@ -309,6 +309,7 @@ The (logical) bus interface is as follows:
 [,verilog]
 ----
 interface data_mem_bus();
+   bit        clk; // writes are performed on the rising clock edge
    bit [31:0] addr; // the read/write address
    bit [1:0]  width; // the width of the read/write (byte, halfword, word)
    bit [31:0] rdata; // read-data returned from device
@@ -325,6 +326,24 @@ The devices on the bus are:
 * The main memory module (RAM)
 * Any memory-mapped CSRs (in particular, the timer interrupt controller)
 * Any memory-mapped peripherals
+
+=== CSR Bus
+
+The CSR bus is similar to the data memory bus:
+
+[,verilog]
+----
+interface csr_bus();
+   bit        clk; // writes are performed on the rising clock edge
+   bit [11:0] addr; // the read/write address
+   bit [31:0] rdata; // read-data returned from a CSR device
+   bit [31:0] wdata; // data to be written to a CSR device
+   bit	      write_en; // whether to perform a write (or just a read)
+   bit	      claim; // devices will claim read/write based on address
+endinterface
+----
+
+Exactly one CSR device attached to the bus will be responsible for asserting the claim signal, and either writing data or returning data. The other devices return zero on the `rdata` line. All the `rdata` lines for each device are ORed together to generate the bus `rdata` signal (and the same for the bus `claim` signal).
 
 == OLD VERSION BELOW
 

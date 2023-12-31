@@ -5,16 +5,7 @@ module cpu #(parameter string ROM_FILE = "rom_image.mem") (
 );
 
    control_bus bus();
-   
-   control_unit control_unit_0(
-      .bus(bus)
-   );
+   control_unit control_unit(.bus);
+   data_path #(.ROM_FILE(ROM_FILE)) data_path (.clk, .meip, .bus);
 
-   data_path #(.ROM_FILE(ROM_FILE)) data_path_0 (
-      .clk(clk),
-      .meip(meip),
-      .bus(bus)
-   );
-     
-   
 endmodule
