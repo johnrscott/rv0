@@ -74,15 +74,11 @@ module data_path #(parameter string ROM_FILE) (
    assign alu_op = { instr[30], funct3 };
    
    // Data memory bus
-   wire [31:0] data_mem_addr;
-   //wire [1:0]  data_mem_width;
-   wire [31:0] data_mem_wdata;
-   //wire        data_mem_write_en;
-   wire [31:0] data_mem_rdata;
-   //wire        data_mem_claim;
+   data_mem_bus dm_bus #(.NUM_DEVICES(2))();
    
-   assign data_mem_addr = main_alu_result;
-   assign data_mem_wdata = rs1_data;
+   assign dm_bus.addr = main_alu_result;
+   assign dm_bus.wdata = rs1_data;
+   
    assign data_path_status.data_mem_claim = data_mem_claim_trap_ctrl |
 					    data_mem_claim_main_mem;
    
@@ -120,32 +116,31 @@ module data_path #(parameter string ROM_FILE) (
    
    // Trap controller
    trap_ctrl trap_ctrl_0(
-     .clk(clk),
-
-     .meip(meip),
-     .mret(control_lines.mret),
-     .trap(trap),
-     .exception_mcause(control_lines.exception_mcause),
-     .pc(pc),
-     .interrupt(data_path_status.interrupt),
-     .mepc(mepc),
-     .trap_vector(trap_vector),
-	 
-     // Data memory bus
-     .data_mem_addr(data_mem_addr),
-     .data_mem_width(control_lines.data_mem_width),
-     .data_mem_wdata(data_mem_wdata),
-     .data_mem_write_en(control_lines.data_mem_write_en),
-     .data_mem_rdata(data_mem_rdata_trap_ctrl),
-     .data_mem_claim(data_mem_claim_trap_ctrl),
-
-     // CSR bus
-     .csr_addr(csr_addr),
-     .csr_wdata(csr_wdata_trap_ctrl),
-     .csr_write_en(control_lines.csr_write_en),
-     .csr_rdata(csr_rdata_trap_ctrl),
-     .csr_claim(csr_claim_trap_ctrl),
-     .illegal_instr(illegal_instr_trap_ctrl)
+      .clk,
+      .meip,
+      .mret(control_lines.mret),
+      .trap,
+      .exception_mcause(control_lines.exception_mcause),
+      .pc,
+      .interrupt(data_path_status.interrupt),
+      .mepc,
+      .trap_vector,
+      
+      // Data memory bus
+      .data_mem_addr(data_mem_addr),
+      .data_mem_width(control_lines.data_mem_width),
+      .data_mem_wdata(data_mem_wdata),
+      .data_mem_write_en(control_lines.data_mem_write_en),
+      .data_mem_rdata(data_mem_rdata_trap_ctrl),
+      .data_mem_claim(data_mem_claim_trap_ctrl),
+      
+      // CSR bus
+      .csr_addr(csr_addr),
+      .csr_wdata(csr_wdata_trap_ctrl),
+      .csr_write_en(control_lines.csr_write_en),
+      .csr_rdata(csr_rdata_trap_ctrl),
+      .csr_claim(csr_claim_trap_ctrl),
+      .illegal_instr(illegal_instr_trap_ctrl)
      );
      
    // Instruction memory
