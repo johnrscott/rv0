@@ -7,12 +7,12 @@ This document describes the design of a single-cycle single-hart rv32i_zicsr RIS
 
 The two required components in a RISC-V processor are:
 
-. the rv32i base integer instruction set
-. a minimal privileged architecture
+. The rv32i base integer instruction set
+. A minimal privileged architecture
 
 The unprivileged RISC-V specification does not require a particular privileged architecture. However, it does require an execution environment interface which supports certain features, including interrupt and exception handling. The simplest way to support these requirements is to implement the minimal subset of the standard RISC-V privileged architecture, which provides only one privilege level (machine mode), and only implements required control and status registers.
 
-The Zicsr extension (control and status register instructions) is not required by the unprivileged architecture. However, since a CPU lacking these instructions would not be able to execute software that can effectively manage interrupts and exceptions, the Zicsr extension is implemented in this design.
+The Zicsr extension (control and status register instructions) is not required by the unprivileged architecture. However, since a CPU lacking these instructions would not be able to manage interrupts and exceptions, the Zicsr extension is implemented in this design.
 
 The design is intended for synthesis in an FPGA target, and should be complete enough to run software compiled by a standard gcc toolchain, interact with a simple debugging environment (e.g. provide a stdout over UART), and interact with basic peripherals (e.g. GPIO).
 
