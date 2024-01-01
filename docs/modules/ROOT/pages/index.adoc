@@ -1,4 +1,4 @@
-= Single-Cycle RISC-V Core 
+= Overview
 :doctype: book
 :toc: left
 :source-highlighter: pygments
