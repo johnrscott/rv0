@@ -1,0 +1,9 @@
+name: single-cycle
+title: Single Cycle CPU
+version: 0.1.0
+start-page: index.adoc
+nav:
+- modules/ROOT/nav.adoc
+- modules/spec/nav.adoc
+- modules/design/nav.adoc
+- modules/notes/nav.adoc
