@@ -1,7 +1,7 @@
 = Overview
 :doctype: book
 :toc: left
-:source-highlighter: pygments
+// :source-highlighter: pygments
 
 This document describes the design of a single-cycle single-hart rv32i_zicsr RISC-V core. The intention is to create a simple implementation of a minimal 32-bit RISC-V standard-compliant CPU.
 
