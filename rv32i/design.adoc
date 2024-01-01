@@ -375,6 +375,8 @@ module csr_wdata_sel(
 
 The output `rdata` from the CSR bus is routed to the register file wrapper (`csr_rdata`), for writing to `rd`, and is also routed to main ALU wrapper for use in computations that write back to the CSR. The `csr_claim` signal is returned to the control unit, to check for illegal instruction (on missing CSR).
 
+
+////
 == OLD VERSION BELOW
 
 == Data path (instructions)
@@ -1104,3 +1106,4 @@ module branch_offset_imm_gen(
        output [31:0] offset,
        );
 ----
+////

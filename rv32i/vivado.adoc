@@ -1,8 +1,12 @@
-= Vivado Toolchain Notes
+= Notes
 
-This document contains notes on using SystemVerilog in Xilinx Vivado for simulation and synthesis for FPGAs.
+This file contains notes relating to SystemVerilog and Vivado.
 
-== SystemVerilog Compilation Units
+== Vivado Toolchain Notes
+
+This section contains notes specific to the Vivado toolchain.
+
+=== SystemVerilog Compilation Units
 
 SystemVerilog supports compilation of multiple files at the same time, which creates a scope for sharing definitions of user defined types. In Vivado, compilation units are defined by libraries (see https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/Compilation-Units[here]). By default, all sources are in the same library (with a name like `xil_defaultlib`).
 
@@ -13,3 +17,134 @@ Putting the struct typedef inside a package, and then importing the struct where
 It is not clear whether the issue was the code used to test the compilation unit, or whether Vivado does not support compilation units (in favour of requiring packages instead).
 
 NOTE: It is possible to define an interface in one file, and instantiate it in a separate file (interfaces cannot go in packages) -- this makes it seem like the compilation unit idea is working.
+
+== SystemVerilog Notes
+
+This section is for general notes about doing things in SystemVerilog
+
+=== Single-host multi-device bus with OR data outputs
+
+Shared buses can be created in verilog by using the high-impedance state `z` to disconnect devices from the bus, allowing one pair of devices to communicate. However, since modern (Xilinx) FPGAs https://fpgaer.tech/?p=253[do not implement tri-state logic], synthesis tools https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/Tristate-Implementation[convert] the logic to multiplexers and regular two-state logic.
+
+In order to express this two-state logic directly in the design, it is possible to use multiplexers to combine the data from each device into a single bus signal; alternatively, device outputs can be ORed together (provided all but one are non-zero), which simulates the behaviour of the tri-state bus. The disadvantage of both these methods is that they require manually specifying the multiplexer/combining logic.
+
+The following method can be used to hide this logic inside a SystemVerilog `interface`, so that it is not specified in the design each time the bus is used. The example below uses the OR method to combine data output from multiple bus devices:
+
+[,verilog]
+----
+// In this example, only the rdata (read data) line
+// is included for simplicity, to focus on the output
+// side of the bus. The interface can be modified to
+// include other lines such as wdata, clk,
+// write_en etc. as required.
+//
+// This example assumes there is one bus host (the
+// module instantiating the bus), communicating with
+// multiple devices.
+//
+// A limitation of this method is that the number of
+// devices on the bus must be specified in advance.
+// This is manageable if the number of devices is
+// relatively small.
+interface bus #(
+   parameter NUM_DEVICES = 2
+) (
+   output bit [31:0] rdata,
+   input bit [31:0]  addr,
+   // other bus lines as required...
+);
+
+   // Inside the bus, each device gets its own
+   // rdata line, called dev_rdata.
+   bit [31:0] dev_rdata[NUM_DEVICES];
+
+   // Make the output rdata signal here by ORing
+   // together all the device dev_rdata signals.
+   // This is all internal to the interface, and
+   // reduces duplication in the modules using the
+   // bus.
+   always_comb begin
+      rdata = 0;
+      for (int n = 0; n < NUM_DEVICES; n++) begin
+	 rdata |= dev_rdata[n];
+      end
+   end
+
+   // Each device must have its own modport, to link
+   // each to a different dev_rdata line.
+   generate
+      for (genvar n = 0; n < NUM_DEVICES; n++) begin: dev
+	 modport device (
+	    // Make the device's dev_rdata line appear to
+	    // have the name rdata from the device's point
+	    // of view.
+	    output .rdata(dev_rdata[n]),
+	    input  addr
+	 );
+      end
+   endgenerate
+
+   // If the bus need a bus controller modport, this
+   // can be added here (
+
+endinterface: bus
+----
+
+This is an example showing how to use the bus in a module. For this bus, the module itself is assumed to be the bus controller, and all the devices are contained inside this module:
+
+[,verilog]
+----
+
+// Both device modules take the bus as a port.
+// In this example, dev1 sets its own rdata to
+// non-zero only for addr == 0. The modport
+// is specified in the device instantiation
+// (see modport), so it is not also included
+// here.
+module dev1(bus bus);
+   always_comb begin
+      if (bus.addr == 0)
+      	 rdata = 10;
+      else
+         rdata = 0;
+   end
+endmodule
+
+// Device 2 sets rdata to non-zero only for
+// addr == 1. In the interface logic, the
+// rdata lines from dev1 and dev2 are ORed
+// together to make the rdata line exposed
+// in the module mod below.
+module dev2(bus bus);
+   always_comb begin
+      if (bus.addr == 1)
+      	 rdata = 20;
+      else
+         rdata = 0;
+   end
+endmodule
+
+module mod();
+       
+   // Mod can set the address and
+   // then read data from rdata, which
+   // comes from one of the devices. In
+   // this example, there is no device
+   // select signal -- the device could
+   // know when it should return data
+   // based on the address.
+   bit [31:0] addr, rdata
+
+   // Instantiate the bus
+   bus #(NUM_DEVICES=2) bus(.rdata, .addr);    
+
+   // Instantiate devices and connect them to the bus.
+   // Note the use of the label name dev to access the
+   // modport.
+   dev1 dev1(.bus(bus.dev[0].device))
+   dev2 dev2(.bus(bus.dev[1].device))
+
+endmodule
+----
+
+NOTE: It may not be more efficient to use this scheme compared to just letting synthesis tools generating the bus logic from a tri-state implementation directly. 
