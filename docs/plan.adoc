@@ -20,3 +20,4 @@ include::spec.adoc[offsetlevel=+1]
 
 include::design.adoc[offsetlevel=+1]
 
+include::notes.adoc[offsetlevel=+1]
