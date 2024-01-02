@@ -1,6 +1,6 @@
 import types::control_lines_t;
 import types::data_path_status_t;
-import types::rv32_instr_t;
+import types::instr_t;
 
 /// Data path
 module data_path #(parameter string ROM_FILE = "rom_image.mem") (
@@ -34,7 +34,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    wire [31:0] pc, pc_plus_4;
    
    // Provides and updates the program counter   
-   pc pc_0(
+   pc pc(
       .clk,
       .sel(control_lines.pc_sel),
       .mepc,
@@ -47,7 +47,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .instr_addr_mis(data_path_status.instr_addr_mis)
    );
    
-   rv32_instr_t instr;
+   instr_t instr;
    
    assign data_path_status.instr = instr;
    
@@ -100,17 +100,17 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
      );
      
    // Instruction memory
-   instr_mem #(.ROM_FILE(ROM_FILE)) instr_mem_0 (
+   instr_mem #(.ROM_FILE(ROM_FILE)) instr_mem (
      .pc(pc),
      .instr(instr),
      .instr_access_fault(data_path_status.instr_access_fault)
      );
    
    // Main memory
-   main_mem main_mem_0(.bus(dm_bus.dev[1].device));
+   main_mem main_mem(.bus(dm_bus.dev[1].device));
    
    // Register file
-   register_file_wrapper register_file_wrapper_0(
+   register_file_wrapper register_file_wrapper(
      .clk,
      .write_en(control_lines.register_file_write_en),
      .rd_data_sel(control_lines.register_file_rd_data_sel),
@@ -124,14 +124,14 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
      );
      
    // Immediate generation for all instruction formats
-   imm_gen imm_gen_0(
+   imm_gen imm_gen(
      .sel(control_lines.imm_gen_sel),
      .instr,
      .imm
      );
      
    // Main arithmetic logic unit
-   main_alu_wrapper main_alu_wrapper_0(
+   main_alu_wrapper main_alu_wrapper(
      .arg_sel(control_lines.alu_arg_sel),
      .alu_op,
      .rs1_data,

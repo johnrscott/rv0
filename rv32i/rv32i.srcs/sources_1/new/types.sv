@@ -1,5 +1,26 @@
 package types;
 
+   /// Selects signal source for writes to rd
+   typedef enum {
+      MAIN_ALU_RESULT,
+      DATA_MEM_RDATA,
+      CSR_RDATA,
+      PC_PLUS_4,
+      LUI_IMM
+   } rd_data_sel_t;
+
+   /// Instruction formats
+   typedef enum {
+      R_TYPE,
+      I_TYPE,
+      S_TYPE,
+      B_TYPE,
+      U_TYPE,
+      J_TYPE,
+      CSR_R_TYPE,
+      CSR_I_TYPE
+   } instr_format_t;
+   
    /// Control unit to data path signals
    typedef struct {
       bit        mret;			    // whether the data path should execute an mret
@@ -44,6 +65,27 @@ package types;
       bit [31:20] imm11_0;      
    } i_type_t;
 
+   /// Same as I-type, but imm fields is replaced
+   /// with CSR address. Used for csrrw, etc.
+   typedef struct packed {
+      bit [6:0] opcode;
+      bit [11:7] rd;
+      bit [14:12] funct3;
+      bit [19:15] rs1;
+      bit [31:20] csr_addr;      
+   } csr_r_type_t;
+
+   /// Same as I-type, but imm fields is replaced
+   /// with CSR address and rs1 holds the uimm field.
+   /// Used for csrrwi etc.
+   typedef struct packed {
+      bit [6:0] opcode;
+      bit [11:7] rd;
+      bit [14:12] funct3;
+      bit [19:15] uimm;
+      bit [31:20] csr_addr;      
+   } csr_i_type_t;
+   
    typedef struct packed {
       bit [6:0] opcode;
       bit [11:7] imm4_0;
@@ -76,7 +118,7 @@ package types;
       bit [19:12] imm19_12;
       bit	  imm11;
       bit [30:21] imm10_1;
-      bit	  imm_20;
+      bit	  imm20;
    } j_type_t;
 
    typedef union packed {
@@ -86,6 +128,8 @@ package types;
       b_type_t b_type;
       u_type_t u_type;
       j_type_t j_type;
-   } rv32_instr_t;
+      csr_r_type_t csr_r_type;
+      csr_i_type_t csr_i_type;
+   } instr_t;
    
 endpackage: types
