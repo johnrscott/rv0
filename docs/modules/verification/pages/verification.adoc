@@ -4,13 +4,13 @@ There are two aspects to checking that the CPU implementation is correct: checki
 
 The plan for designing and testing the CPU is as follows:
 
-1. Design the modules as per the specification/design outline.
+* Design the modules as per the specification/design outline.
 
 Next, the design will be compared against the specification:
 
-2. Create a testing plan for functional verification, and develop a set of testbenches to implement this plan.
-3. Create a formal verification plan, and implement it for the design.
+* Create a testing plan for functional verification, and develop a set of testbenches to implement this plan.
+* Create a formal verification plan, and implement it for the design.
 
 Finally, the design will be compared against expected RISC-V behaviour (which will checking the specification complies with RISC-V)
 
-4. Compare the behaviour of the design with expected behaviour using a set of RISC-V unit tests.
+* Compare the behaviour of the design with expected behaviour using a set of RISC-V unit tests.
