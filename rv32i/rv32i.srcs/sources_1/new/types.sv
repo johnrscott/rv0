@@ -1,7 +1,7 @@
 package types;
 
    /// Selects signal source for writes to rd
-   typedef enum {
+   typedef enum [2:0] {
       MAIN_ALU_RESULT,
       DATA_MEM_RDATA,
       CSR_RDATA,
@@ -10,7 +10,7 @@ package types;
    } rd_data_sel_t;
 
    /// Instruction formats
-   typedef enum {
+   typedef enum [2:0] {
       R_TYPE,
       I_TYPE,
       S_TYPE,

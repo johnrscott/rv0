@@ -4,7 +4,10 @@ There are two aspects to checking that the CPU implementation is correct: checki
 
 The plan for designing and testing the CPU is as follows:
 
-* Design the modules as per the specification/design outline.
+* Design the modules as per the specification/design outline, and write some preliminary testbenches
+** Design the unprivileged subset first (ignoring traps and Zicsr instructions). This can be used to test most of the data path and control unit for most instruction types.
+** Add in support for exceptions
+** Add in support for interrupts
 
 Next, the design will be compared against the specification:
 
