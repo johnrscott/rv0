@@ -6,4 +6,5 @@ nav:
 - modules/ROOT/nav.adoc
 - modules/spec/nav.adoc
 - modules/design/nav.adoc
+- modules/verification/nav.adoc
 - modules/notes/nav.adoc
