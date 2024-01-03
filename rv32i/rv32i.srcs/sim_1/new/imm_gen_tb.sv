@@ -12,6 +12,7 @@ import types::instr_t;
 //
 // The test vectors in the file were generated using this online
 // decoder: https://luplab.gitlab.io/rvcodecjs/
+//
 module imm_gen_tb;
 
    timeunit 1ns;

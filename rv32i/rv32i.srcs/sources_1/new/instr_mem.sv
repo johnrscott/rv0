@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+import types::instr_t;
 
 /// Fetch an instruction from program memory
 ///
@@ -13,16 +13,16 @@
 /// An InstructionAccessFault exception is raised if the pc is 
 /// out of range for the valid program memory addresses.
 ///
-module instr_mem
-  #(parameter string ROM_FILE)
-   (
-  input [31:0] 	pc, // current pc
-  output [31:0] instr, // the instruction at pc
-  output 	instr_access_fault // raised for out-of-range pc
-		     );
+module instr_mem #(
+   parameter string ROM_FILE
+) (
+   input [31:0]	pc,		   // current pc
+   output	instr_t instr,	   // the instruction at pc
+   output	instr_access_fault // raised for out-of-range pc
+);
    
-   logic [31:0] instr_words[256];
-
+   instr_t instr_words[256];
+   
    // Load instructions from a file
    initial begin
       instr_words = '{default: '0};

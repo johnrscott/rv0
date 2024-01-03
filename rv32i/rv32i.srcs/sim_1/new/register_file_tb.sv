@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 module register_file_tb();
 
-    reg [31:0] rd_data = 0; // data for write
+   reg [31:0] rd_data = 0; // data for write
     reg [4:0] rs1 = 0; // source register index A
     reg [4:0] rs2 = 0; // source register index B
     reg [4:0] rd = 0; // destination register index for write

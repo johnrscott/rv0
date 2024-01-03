@@ -1,6 +1,5 @@
-`timescale 1ns / 1ps
-
-`include "opcodes.svh"
+import types::alu_arg_sel_t;
+import types::alu_op_t;
 
 /// Main ALU Wrapper Module
 ///
@@ -42,62 +41,62 @@
 ///
 /// In this design, the lui instruction bypasses the ALU.
 module main_alu_wrapper(
-       input [2:0] arg_sel, // Select the ALU arguments
-       input [3:0] alu_op, // Select the ALU operation (when required)
-       input [31:0] rs1_data, // Value of rs1 register
-       input [31:0] rs2_data, // Value of rs2 register
-       input [31:0] imm, // 32-bit immediate
-       input [31:0] pc, // Current program counter
-       input [31:0] csr_rdata, // Read-data for CSR bus
-       output [31:0] main_alu_result, // ALU output
-       output main_alu_zero // ALU zero flag output
-       );
-
-   reg [31:0] a, b;
-   reg [3:0]  alu_op_internal;
+   input	 alu_arg_sel_t arg_sel,	// Select the ALU arguments
+   input	 alu_op_t alu_op,	// Select the ALU operation (when required)
+   input [31:0]	 rs1_data,		// Value of rs1 register
+   input [31:0]	 rs2_data,		// Value of rs2 register
+   input [31:0]	 imm,			// 32-bit immediate
+   input [31:0]	 pc,			// Current program counter
+   input [31:0]	 csr_rdata,		// Read-data for CSR bus
+   output [31:0] main_alu_result,	// ALU output
+   output	 main_alu_zero		// ALU zero flag output
+);
    
-   always @* begin
+   bit [31:0] a, b;
+   alu_op_t  alu_op_internal;
+   
+   always_comb begin
       alu_op_internal = alu_op;
-      case(arg_sel)
-	3'b000: begin 
+      case (arg_sel)
+	types::RS1_RS2: begin 
  	   // for register-register and conditional branch instructions
 	   a = rs1_data;
 	   b = rs2_data;
 	end
-	3'b001: begin
+	types::RS1_IMM: begin
 	   // for register-immediate, load/store, and jalr instructions
 	   a = rs1_data;
 	   b = imm;
 	end
-	3'b010: begin
+	types::PC_IMM: begin
 	   // for jal and auipc
 	   a = pc;
 	   b = imm;
-	   alu_op_internal = { 1'b0, FUNCT3_ADD };
+	   alu_op_internal = { 1'b0, types::FUNCT3_ADD };
 	end
-	3'b011: begin
+	types::RS1_CSR: begin
 	   // for csrrs
 	   a = rs1_data;
 	   b = csr_rdata;
-	   alu_op_internal = { 1'b0, FUNCT3_OR };
+	   alu_op_internal = { op_mod:1'b0, op:types::FUNCT3_OR };
 	end
-	3'b100: begin
+	types::IMM_CSR: begin
 	   // for csrrsi
 	   a = imm;
 	   b = csr_rdata;
-	   alu_op_internal = { 1'b0, FUNCT3_OR };
+	   alu_op_internal = { op_mod:1'b0, op:types::FUNCT3_OR };
 	end
-	3'b101: begin
+	types::NOT_RS1_CSR: begin
 	   // for csrrc
 	   a = ~rs1_data;
 	   b = csr_rdata;
-	   alu_op_internal = { 1'b0, FUNCT3_AND };
+	   alu_op_internal = { op_mod:1'b0, op:types::FUNCT3_AND };
 	end
-	3'b110: begin
+	types::NOT_IMM_CSR: begin
 	   // for csrrci
 	   a = { {27{1'b1}}, ~imm[4:0] };
 	   b = csr_rdata;
-	   alu_op_internal = { 1'b0, FUNCT3_AND };
+	   alu_op_internal = { op_mod:1'b0, op:types::FUNCT3_AND };
 	end
 	default: begin
 	   a = 0;
@@ -107,9 +106,9 @@ module main_alu_wrapper(
 
    end
    
-   alu alu_0(
-     .a(a),
-     .b(b),
+   alu alu(
+     .a,
+     .b,
      .alu_op(alu_op_internal),
      .r(main_alu_result),
      .zero(main_alu_zero)

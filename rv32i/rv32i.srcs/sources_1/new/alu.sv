@@ -1,6 +1,4 @@
-`timescale 1ns / 1ps
-
-`include "opcodes.svh"
+import types::alu_op_t;
 
 /// Arithmetic Control Unit
 ///
@@ -33,43 +31,44 @@
 /// bits to funct3 in all cases.
 ///
 module alu(
-    input [31:0] a, // First 32-bit operand
-    input [31:0] b, // Second 32-bit operand
-    input [3:0] alu_op, // ALU control signals (see comments above)
-    output reg [31:0] r, // 32-bit result
-    output zero // 1 if r is zero, 0 otherwise
-    );    
-    assign zero = ~|r;
-    
-    wire [31:0] r_shift;
-    wire right_shift;
-    wire arith_right_shift;
-    wire [4:0] shamt;
-    assign right_shift = (alu_op[2:0] == 3'b101);
-    assign arith_right_shift = (alu_op[3] == 1);
-    assign shamt = b[4:0];
-    
-    shift shift_0(
-        .d(a), // a is the operand to be shifted
-        .shamt(shamt), // b is the shift amount
-        .right(right_shift),
-        .arith(arith_right_shift),
-        .shifted(r_shift) // shifted result
-    );
-    
-    /// Note: this uses combinational arithmetic which is not
-    /// recommended by Xilinx for optimal use of DSP blocks.
-    /// To fix.
-    always @* begin
-        case (alu_op[2:0])
-            FUNCT3_ADD: r = alu_op[3] ? a - b : a + b;
-            FUNCT3_SLL, FUNCT3_SRL: r = r_shift;
-            FUNCT3_SLTU: r = a < b ? 1 : 0;
-            FUNCT3_SLT: r = $signed(a) < $signed(b) ? 1 : 0;
-            FUNCT3_XOR: r = a ^ b;
-            FUNCT3_OR: r = a | b;
-            FUNCT3_AND: r = a & b;
-        endcase
-    end
-    
+   input [31:0]	     a,		      // First 32-bit operand
+   input [31:0]	     b,		      // Second 32-bit operand
+   input	     alu_op_t alu_op, // ALU control signals (see comments above)
+   output bit [31:0] r,		      // 32-bit result
+   output	     zero	      // 1 if r is zero, 0 otherwise
+);    
+   
+   wire [31:0] r_shift;
+   wire	       right;
+   wire	       arith;
+   wire [4:0]  shamt;
+   
+   assign right = (alu_op.op == types::FUNCT3_SRL);
+   assign arith = (alu_op.op_mod == 1);
+   assign shamt = b[4:0];
+   assign zero = ~|r;
+   
+   shift shift_0(
+      .d(a), // a is the operand to be shifted
+      .shamt, // b is the shift amount
+      .right,
+      .arith,
+      .shifted(r_shift) // shifted result
+   );
+   
+   /// Note: this uses combinational arithmetic which is not
+   /// recommended by Xilinx for optimal use of DSP blocks.
+   /// To fix in next iteration of design.
+   always_comb begin
+      case (alu_op.op)
+        types::FUNCT3_ADD: r = alu_op.op_mod ? a - b : a + b;
+        types::FUNCT3_SLL, types::FUNCT3_SRL: r = r_shift;
+        types::FUNCT3_SLTU: r = a < b ? 1 : 0;
+        types::FUNCT3_SLT: r = $signed(a) < $signed(b) ? 1 : 0;
+        types::FUNCT3_XOR: r = a ^ b;
+        types::FUNCT3_OR: r = a | b;
+        types::FUNCT3_AND: r = a & b;
+      endcase
+   end
+   
 endmodule

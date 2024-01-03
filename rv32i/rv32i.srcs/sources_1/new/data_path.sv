@@ -1,6 +1,7 @@
 import types::control_lines_t;
 import types::data_path_status_t;
 import types::instr_t;
+import types::alu_op_t;
 
 /// Data path
 module data_path #(parameter string ROM_FILE = "rom_image.mem") (
@@ -17,12 +18,15 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    assign data_path_status = bus.data_path_status;
    
    // 32-bit sign- or zero-extended immediate
-   wire [31:0] imm;
+   bit [31:0] imm;
    
    // Main ALU signals
-   wire [31:0] main_alu_result, a, b, main_alu_b_imm;
-   wire	       main_alu_zero;
-   wire [3:0]  alu_op;
+   bit [31:0] main_alu_result, a, b, main_alu_b_imm;
+   bit	      main_alu_zero;
+   alu_op_t alu_op;
+
+   assign data_path_status.main_alu_result = main_alu_result;
+   assign data_path_status.main_alu_zero = main_alu_zero;
    
    // Register file signals
    wire [31:0] rd_data, rs1_data, rs2_data;
@@ -51,7 +55,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    
    assign data_path_status.instr = instr;
    
-   assign alu_op = { instr[30], instr.r_type.funct3 };
+   assign alu_op = { op_mod:instr[30], op:instr.r_type.funct3 };
    
    bit [31:0] data_mem_rdata;
    
