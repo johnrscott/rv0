@@ -1,11 +1,22 @@
+import types::control_lines_t;
+import types::data_path_status_t;
+
 module data_path_tb;
 
    timeunit 1ns;
    timeprecision 10ps;
 
-   control_bus bus();
+   parameter TB_ROM_FILE = "data_path_tb_rom_file.mem";
    
-   data_path dut(.bus);
+   control_lines_t control_lines;
+   data_path_status_t data_path_status;
+   
+   control_bus bus();
+
+   assign control_lines = bus.control_lines;
+   assign data_path_status = bus.data_path_status;
+   
+   data_path #(.ROM_FILE(TB_ROM_FILE)) dut(.bus);
 
    initial begin
 
@@ -23,8 +34,6 @@ module data_path_tb;
       bus.control_lines.trap = 0;
       bus.control_lines.exception_mcause = 0;
 
-      #10;
-      
       
    end
 
