@@ -47,6 +47,7 @@ module imm_gen(
 	  imm = instr.u_type.imm31_12 << 12;
 	types::J_TYPE:
 	  imm = signed'({
+	     instr.j_type.imm20,
 	     instr.j_type.imm19_12,
 	     instr.j_type.imm11,
 	     instr.j_type.imm10_1,
