@@ -11,6 +11,7 @@
 *.str
 .Xil
 *.tmp
+*.out
 
 # Emacs autosaves/other
 *~

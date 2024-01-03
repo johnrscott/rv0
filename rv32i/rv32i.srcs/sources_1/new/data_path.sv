@@ -34,7 +34,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    wire [31:0] pc, pc_plus_4;
    
    // Provides and updates the program counter   
-   pc pc(
+   pc pc_wrapper(
       .clk,
       .sel(control_lines.pc_sel),
       .mepc,

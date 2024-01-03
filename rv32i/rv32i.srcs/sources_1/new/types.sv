@@ -1,7 +1,8 @@
 package types;
 
    /// Selects signal source for writes to rd
-   typedef enum [2:0] {
+   /// (Vivado does not support non-integral enums)
+   typedef enum {
       MAIN_ALU_RESULT,
       DATA_MEM_RDATA,
       CSR_RDATA,
@@ -10,7 +11,8 @@ package types;
    } rd_data_sel_t;
 
    /// Instruction formats
-   typedef enum [2:0] {
+   /// (Vivado does not support non-integral enums)
+   typedef enum {
       R_TYPE,
       I_TYPE,
       S_TYPE,
