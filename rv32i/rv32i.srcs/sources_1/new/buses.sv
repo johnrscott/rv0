@@ -5,12 +5,11 @@ interface control_bus(input bit clk);
    
    control_lines_t control_lines;
    data_path_status_t data_path_status;
-   bit test;
 
    clocking status_cb @(posedge clk);
       default input #2 output #2;
       input data_path_status;
-      output control_lines, test;
+      output control_lines;
    endclocking
    
    modport control (
@@ -20,7 +19,7 @@ interface control_bus(input bit clk);
 
    modport status (
       output data_path_status,
-      input  clk, control_lines, test
+      input  clk, control_lines
    );
    
 endinterface: control_bus

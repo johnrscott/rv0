@@ -39,9 +39,15 @@ module data_path_tb;
       // Do lui
       @(bus.status_cb)
 	//bus.status_cb.control_lines.imm_gen_sel <= types::U_TYPE;
-	bus.status_cb.control_lines.mret <= 1'b1;
+	bus.status_cb.control_lines.csr_write_en <= 1'b1;
 	//bus.status_cb.test <= 1;
-      
+
+
+      @(bus.status_cb)
+	//bus.status_cb.control_lines.imm_gen_sel <= types::U_TYPE;
+	bus.status_cb.control_lines.csr_write_en <= 1'b0;
+	//bus.status_cb.test <= 1;
+      //       
       @(bus.status_cb);
       
    end
