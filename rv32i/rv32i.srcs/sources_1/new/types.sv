@@ -52,7 +52,18 @@ package types;
    } instr_format_t;
    
    /// Control unit to data path signals
-   typedef struct {
+   ///
+   /// If this is not packed, I get errors assigning
+   /// to the fields via a clocking block in the
+   /// data_path_tb testbench. This might be related
+   /// to this issue (maybe a Vivado bug):
+   ///
+   /// https://support.xilinx.com/s/question/
+   /// 0D54U00007ZIGfXSAX/xsim-bug-xsim-does-
+   /// not-simulate-struct-assignments-in-c
+   /// locking-blocks-correctly?language=en_US
+   ///
+   typedef struct packed {
       logic        mret;			    // whether the data path should execute an mret
       instr_format_t imm_gen_sel;           // select which immediate format to extract
       alu_arg_sel_t alu_arg_sel;	    // pick the ALU operation
