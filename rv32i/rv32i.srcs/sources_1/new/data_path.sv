@@ -5,11 +5,12 @@ import types::alu_op_t;
 
 /// Data path
 module data_path #(parameter string ROM_FILE = "rom_image.mem") (
-   input	      clk,
-   input	      meip, // External interrupt pending
-   
+   input	      meip, // External interrupt pending   
    control_bus.status bus
 );
+
+   bit clk;
+   assign clk = bus.clk;
    
    control_lines_t control_lines;
    data_path_status_t data_path_status;
