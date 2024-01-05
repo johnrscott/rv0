@@ -5,7 +5,7 @@ import types::pc_sel_t;
 import types::csr_wdata_sel_t;
 import types::rd_data_sel_t;
 
-interface control_bus(input bit clk, rstn);
+interface control_bus(input logic clk, rstn);
      
    // Originally the signals in this interface
    // were bundled into two structs (control_lines_t
