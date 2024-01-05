@@ -22,6 +22,16 @@ module instr_mem #(
 );
    
    instr_t instr_words[256];
+
+   // Extract word address form program counter (ignoring
+   // the low two bits)
+   logic [20:0]	word_addr;
+   
+   assign word_addr = pc[31:2];
+   assign instr = instr_words[word_addr];
+   
+   // Instruction access fault occurs if pc > 'h400
+   assign instr_access_fault = (pc[31:11] != 0);
    
    // Load instructions from a file
    initial begin
@@ -29,14 +39,5 @@ module instr_mem #(
       $display("Loading rom.");
       $readmemh(ROM_FILE, instr_words);
    end
-   
-   // Extract word address form program counter (ignoring
-   // the low two bits)
-   logic 	word_addr = pc[2+:8];
-
-   assign instr = instr_words[word_addr];
-   
-   // Instruction access fault occurs if pc > 'h400
-   assign instr_access_fault = (pc[31:11] != 0);
    
 endmodule
