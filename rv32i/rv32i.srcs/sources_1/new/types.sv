@@ -46,6 +46,18 @@ package types;
       LUI_IMM
    } rd_data_sel_t;
 
+   typedef enum bit [1:0] {
+      WIDTH_BYTE,
+      WIDTH_HALFWORD,
+      WIDTH_WORD
+   } width_t;
+
+   typedef enum bit [1:0] {
+      CSR_WDATA_RS1,
+      CSR_WDATA_ALU,
+      CSR_WDATA_IMM
+   } csr_wdata_sel_t;
+   
    /// Instruction formats
    /// (Vivado does not support non-integral enums)
    typedef enum bit [2:0] {
@@ -71,33 +83,6 @@ package types;
    /// not-simulate-struct-assignments-in-c
    /// locking-blocks-correctly?language=en_US
    ///
-   class control_lines_t;
-      instr_format_t imm_gen_sel;           // select which immediate format to extract
-      alu_arg_sel_t alu_arg_sel;	    // pick the ALU operation
-      logic [1:0]	 data_mem_width;	    // pick the load/store access width
-      pc_sel_t	 pc_sel;		    // choose how to calculate the next program counter
-      logic [1:0]	 csr_wdata_sel;             // pick write data source for CSR bus
-      logic		 register_file_write_en;    // whether to write to rd
-      logic [2:0]	 register_file_rd_data_sel; // select source for write to rd
-      logic	 data_mem_write_en;	    // whether to write to data memory bus
-      logic	 csr_write_en;		    // whether to write to CSR bus
-      logic	 trap;			    // whether to execute an (interrupt or exception) trap
-      logic	 mret;			    // whether the data path should execute an mret
-      logic [31:0] exception_mcause;	    // for an exception, what is the mcause value
-   endclass
-   
-   /// Data path outputs for control unit
-   typedef struct {
-      bit [31:0] instr;				// instruction at current program counter
-      //bit	 illegal_instr;			// illegal instruction exception
-      bit	 instr_addr_mis;		// instruction address misaligned
-      bit	 instr_access_fault;		// instruction access fault
-      bit	 interrupt;			// is an interrupt pending?	 
-      bit	 data_mem_claim;		// has any device claimed data read/write?
-      bit	 csr_claim;			// has any device claimed CSR bus read/write?
-      bit	 main_alu_result;               // bit 0 used for conditional branch
-      bit	 main_alu_zero;                 // used for conditional branch
-   } data_path_status_t;
 
    typedef struct packed {
       bit [31:25] funct7;

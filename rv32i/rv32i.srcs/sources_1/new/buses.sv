@@ -1,27 +1,98 @@
-import types::control_lines_t;
-import types::data_path_status_t;
-   
-interface control_bus(input bit clk);
-   
-   control_lines_t control_lines;
-   data_path_status_t data_path_status;
-   bit test;
+import types::instr_format_t;
+import types::alu_arg_sel_t;
+import types::width_t;
+import types::pc_sel_t;
+import types::csr_wdata_sel_t;
+import types::rd_data_sel_t;
 
+interface control_bus(input bit clk);
+     
+   // Originally the signals in this interface
+   // were bundled into two structs (control_lines_t
+   // and data_path_status_t), which makes writing
+   // the modports and clocking blocks more concise.
+   // However, due to a Vivado bug this causes a
+   // simulation problem:
+   //
+   // https://support.xilinx.com/s/question/
+   // 0D54U00007ZIGfXSAX/xsim-bug-xsim-does-
+   // not-simulate-struct-assignments-in-c
+   // locking-blocks-correctly?language=en_US
+   //
+   
+   // Control lines
+   instr_format_t imm_gen_sel;           // select which immediate format to extract
+   alu_arg_sel_t alu_arg_sel;	    // pick the ALU operation
+   width_t	 data_mem_width;	    // pick the load/store access width
+   pc_sel_t	 pc_sel;		    // choose how to calculate the next program counter
+   csr_wdata_sel_t csr_wdata_sel;             // pick write data source for CSR bus
+   logic	 register_file_write_en;    // whether to write to rd
+   rd_data_sel_t register_file_rd_data_sel; // select source for write to rd
+   logic	 data_mem_write_en;	    // whether to write to data memory bus
+   logic	 csr_write_en;		    // whether to write to CSR bus
+   logic	 trap;			    // whether to execute an (interrupt or exception) trap
+   logic	 mret;			    // whether the data path should execute an mret
+   logic [31:0]	 exception_mcause;	    // for an exception, what is the mcause value
+   
+   // Data path status
+   logic [31:0]	 instr;				// instruction at current program counter
+   logic	 instr_addr_mis;		// instruction address misaligned
+   logic	 instr_access_fault;		// instruction access fault
+   logic	 interrupt;			// is an interrupt pending?	 
+   logic	 data_mem_claim;		// has any device claimed data read/write?
+   logic	 csr_claim;			// has any device claimed CSR bus read/write?
+   logic	 main_alu_result;               // logic 0 used for conditional branch
+   logic	 main_alu_zero;                 // used for conditional branch
+   
    clocking status_cb @(posedge clk);
       default input #2 output #2;
-      input data_path_status;
-      output control_lines, test;
+      input instr, instr_addr_mis, instr_access_fault,
+	    interrupt, data_mem_claim, csr_claim,
+	    main_alu_result, main_alu_zero;
+      output imm_gen_sel, alu_arg_sel, data_mem_width,
+	     pc_sel, csr_wdata_sel, register_file_write_en,
+	     register_file_rd_data_sel, data_mem_write_en,
+	     csr_write_en, trap, mret, exception_mcause;
    endclocking
    
    modport control (
-      output control_lines,
-      input  data_path_status
+      output imm_gen_sel, alu_arg_sel, data_mem_width,
+	     pc_sel, csr_wdata_sel, register_file_write_en,
+	     register_file_rd_data_sel, data_mem_write_en,
+	     csr_write_en, trap, mret, exception_mcause,
+      input  instr, instr_addr_mis, instr_access_fault,
+	     interrupt, data_mem_claim, csr_claim,
+	     main_alu_result, main_alu_zero
    );
 
    modport status (
-      output data_path_status,
-      input  clk, control_lines, test
+      output instr, instr_addr_mis, instr_access_fault,
+	     interrupt, data_mem_claim, csr_claim,
+	     main_alu_result, main_alu_zero,
+      input  clk, imm_gen_sel, alu_arg_sel, data_mem_width,
+	     pc_sel, csr_wdata_sel, register_file_write_en,
+	     register_file_rd_data_sel, data_mem_write_en,
+	     csr_write_en, trap, mret, exception_mcause
    );
+
+   /// Set the control lines to default values (register.
+   /// and memory writes disabled, but otherwise similar
+   /// to register-register instruction). Used for
+   /// synthesis as well as simulation.
+   task reset_control;
+      imm_gen_sel = types::I_TYPE; // don't care
+      alu_arg_sel = types::RS1_RS2;
+      data_mem_width = types::WIDTH_BYTE; // don't care
+      pc_sel = types::PC_SEL_PC_PLUS_4;
+      csr_wdata_sel = types::CSR_WDATA_RS1; // don't care
+      register_file_write_en = 0; // write disabled
+      register_file_rd_data_sel = types::MAIN_ALU_RESULT;
+      data_mem_write_en = 0;
+      csr_write_en = 0;
+      trap = 0;
+      mret = 0;
+      exception_mcause = 0;
+   endtask
    
 endinterface: control_bus
 
@@ -31,7 +102,7 @@ interface data_mem_bus #(
    output bit [31:0] rdata,
    output bit	     claim,
    input bit [31:0]  addr, wdata,
-   input bit [1:0]   width,
+   input	     width_t width,
    input bit	     write_en,
    input bit	     clk
 );

@@ -22,7 +22,7 @@ module control_unit(
 );
 
    // Different instruction classes
-   enum 	{
+   enum {
       PRIV, UP_IMM, REG_REG,
       REG_IMM, JUMP, BRANCH,
       LOAD, STORE, CSR
@@ -31,14 +31,14 @@ module control_unit(
    always_comb begin
       
       // Set all control signals to default values
-      bus.control_lines = '{default: 0};
+      bus.reset_control();
       
       case (instr_type)
 	PRIV:;
 	UP_IMM: begin
 	   // lui and auipc
-	   bus.control_lines.register_file_write_en = 1;
-	   bus.control_lines.register_file_rd_data_sel = 3'b100;
+	   bus.register_file_write_en = 1;
+	   bus.register_file_rd_data_sel = 3'b100;
 	end
 	REG_REG:;
 	REG_IMM:;
@@ -49,7 +49,7 @@ module control_unit(
 	CSR:;
 	default:;
       endcase
-
+      
    end
    
 endmodule

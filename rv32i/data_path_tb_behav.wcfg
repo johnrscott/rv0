@@ -12,15 +12,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="19,999,999 ps"></ZoomStartTime>
-      <ZoomEndTime time="20,000,006 ps"></ZoomEndTime>
-      <Cursor1Time time="20,000,000 ps"></Cursor1Time>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="34.101 ns"></ZoomEndTime>
+      <Cursor1Time time="0.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="271"></NameColumnWidth>
+      <NameColumnWidth column_width="267"></NameColumnWidth>
       <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="6" />
+   <WVObjectSize size="23" />
    <wvobject type="logic" fp_name="/data_path_tb/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -33,16 +33,84 @@
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/data_path_tb/bus/control_lines">
-      <obj_property name="ElementShortName">control_lines</obj_property>
-      <obj_property name="ObjectShortName">control_lines</obj_property>
+   <wvobject type="array" fp_name="/data_path_tb/bus/imm_gen_sel">
+      <obj_property name="ElementShortName">imm_gen_sel[2:0]</obj_property>
+      <obj_property name="ObjectShortName">imm_gen_sel[2:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/data_path_tb/bus/data_path_status">
-      <obj_property name="ElementShortName">data_path_status</obj_property>
-      <obj_property name="ObjectShortName">data_path_status</obj_property>
+   <wvobject type="array" fp_name="/data_path_tb/bus/alu_arg_sel">
+      <obj_property name="ElementShortName">alu_arg_sel[2:0]</obj_property>
+      <obj_property name="ObjectShortName">alu_arg_sel[2:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/data_path_tb/bus/test">
-      <obj_property name="ElementShortName">test</obj_property>
-      <obj_property name="ObjectShortName">test</obj_property>
+   <wvobject type="array" fp_name="/data_path_tb/bus/data_mem_width">
+      <obj_property name="ElementShortName">data_mem_width[1:0]</obj_property>
+      <obj_property name="ObjectShortName">data_mem_width[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/bus/pc_sel">
+      <obj_property name="ElementShortName">pc_sel[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pc_sel[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/bus/csr_wdata_sel">
+      <obj_property name="ElementShortName">csr_wdata_sel[1:0]</obj_property>
+      <obj_property name="ObjectShortName">csr_wdata_sel[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/register_file_write_en">
+      <obj_property name="ElementShortName">register_file_write_en</obj_property>
+      <obj_property name="ObjectShortName">register_file_write_en</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/bus/register_file_rd_data_sel">
+      <obj_property name="ElementShortName">register_file_rd_data_sel[2:0]</obj_property>
+      <obj_property name="ObjectShortName">register_file_rd_data_sel[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/data_mem_write_en">
+      <obj_property name="ElementShortName">data_mem_write_en</obj_property>
+      <obj_property name="ObjectShortName">data_mem_write_en</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/csr_write_en">
+      <obj_property name="ElementShortName">csr_write_en</obj_property>
+      <obj_property name="ObjectShortName">csr_write_en</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/trap">
+      <obj_property name="ElementShortName">trap</obj_property>
+      <obj_property name="ObjectShortName">trap</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/mret">
+      <obj_property name="ElementShortName">mret</obj_property>
+      <obj_property name="ObjectShortName">mret</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/bus/exception_mcause">
+      <obj_property name="ElementShortName">exception_mcause[31:0]</obj_property>
+      <obj_property name="ObjectShortName">exception_mcause[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/bus/instr">
+      <obj_property name="ElementShortName">instr[31:0]</obj_property>
+      <obj_property name="ObjectShortName">instr[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/instr_addr_mis">
+      <obj_property name="ElementShortName">instr_addr_mis</obj_property>
+      <obj_property name="ObjectShortName">instr_addr_mis</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/instr_access_fault">
+      <obj_property name="ElementShortName">instr_access_fault</obj_property>
+      <obj_property name="ObjectShortName">instr_access_fault</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/interrupt">
+      <obj_property name="ElementShortName">interrupt</obj_property>
+      <obj_property name="ObjectShortName">interrupt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/data_mem_claim">
+      <obj_property name="ElementShortName">data_mem_claim</obj_property>
+      <obj_property name="ObjectShortName">data_mem_claim</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/csr_claim">
+      <obj_property name="ElementShortName">csr_claim</obj_property>
+      <obj_property name="ObjectShortName">csr_claim</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/main_alu_result">
+      <obj_property name="ElementShortName">main_alu_result</obj_property>
+      <obj_property name="ObjectShortName">main_alu_result</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/data_path_tb/bus/main_alu_zero">
+      <obj_property name="ElementShortName">main_alu_zero</obj_property>
+      <obj_property name="ObjectShortName">main_alu_zero</obj_property>
    </wvobject>
 </wave_config>

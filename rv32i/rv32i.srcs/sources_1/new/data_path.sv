@@ -1,5 +1,3 @@
-import types::control_lines_t;
-import types::data_path_status_t;
 import types::instr_t;
 import types::alu_op_t;
 
@@ -8,15 +6,9 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    input	      meip, // External interrupt pending   
    control_bus.status bus
 );
-
+   
    bit clk;
    assign clk = bus.clk;
-   
-   control_lines_t control_lines;
-   data_path_status_t data_path_status;
-   
-   assign control_lines = bus.control_lines;
-   assign data_path_status = bus.data_path_status;
    
    // 32-bit sign- or zero-extended immediate
    bit [31:0] imm;
@@ -26,8 +18,8 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    bit	      main_alu_zero;
    alu_op_t alu_op;
 
-   assign data_path_status.main_alu_result = main_alu_result;
-   assign data_path_status.main_alu_zero = main_alu_zero;
+   assign bus.main_alu_result = main_alu_result;
+   assign bus.main_alu_zero = main_alu_zero;
    
    // Register file signals
    wire [31:0] rd_data, rs1_data, rs2_data;
@@ -41,20 +33,20 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    // Provides and updates the program counter   
    pc pc_wrapper(
       .clk,
-      .sel(control_lines.pc_sel),
+      .sel(bus.pc_sel),
       .mepc,
       .trap_vector,
       .offset(imm),
       .main_alu_result,
-      .trap(control_lines.trap),
+      .trap(bus.trap),
       .pc,
       .pc_plus_4,
-      .instr_addr_mis(data_path_status.instr_addr_mis)
+      .instr_addr_mis(bus.instr_addr_mis)
    );
    
    instr_t instr;
    
-   assign data_path_status.instr = instr;
+   assign bus.instr = instr;
    
    assign alu_op = { op_mod:instr[30], op:instr.r_type.funct3 };
    
@@ -64,9 +56,9 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    data_mem_bus #(.NUM_DEVICES(2)) dm_bus (
       .clk,
       .rdata(data_mem_rdata),
-      .claim(data_path_status.data_mem_claim),
+      .claim(bus.data_mem_claim),
       .addr(main_alu_result),
-      .width(control_lines.data_mem_width),
+      .width(bus.data_mem_width),
       .wdata(rs2_data)
    );
    
@@ -77,12 +69,12 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .rdata(csr_rdata),
       .addr(instr[31:20]),
       .wdata(csr_wdata),
-      .claim(data_path_status.csr_claim)
+      .claim(bus.csr_claim)
    );
    
    // Select CSR write data source
    csr_wdata_sel csr_wdata_sel(
-      .sel(control_lines.csr_wdata_sel),
+      .sel(bus.csr_wdata_sel),
       .rs1_data,
       .main_alu_result,
       .imm,
@@ -93,59 +85,59 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    trap_ctrl trap_ctrl(
       .clk,
       .meip,
-      .mret(control_lines.mret),
-      .trap(control_lines.trap),
-      .exception_mcause(control_lines.exception_mcause),
+      .mret(bus.mret),
+      .trap(bus.trap),
+      .exception_mcause(bus.exception_mcause),
       .pc,
-      .interrupt(data_path_status.interrupt),
+      .interrupt(bus.interrupt),
       .mepc,
       .trap_vector,
       .dm_bus(dm_bus.dev[0].device), // Data memory bus
       .csr_bus(csr_bus.dev[0].device) // CSR bus
-     );
-     
+   );
+   
    // Instruction memory
    instr_mem #(.ROM_FILE(ROM_FILE)) instr_mem (
-     .pc(pc),
-     .instr(instr),
-     .instr_access_fault(data_path_status.instr_access_fault)
-     );
+      .pc(pc),
+      .instr(instr),
+      .instr_access_fault(bus.instr_access_fault)
+   );
    
    // Main memory
    main_mem main_mem(.bus(dm_bus.dev[1].device));
    
    // Register file
    register_file_wrapper register_file_wrapper(
-     .clk,
-     .write_en(control_lines.register_file_write_en),
-     .rd_data_sel(control_lines.register_file_rd_data_sel),
-     .main_alu_result,
-     .data_mem_rdata,
-     .csr_rdata,
-     .pc_plus_4,
-     .instr,
-     .rs1_data,
-     .rs2_data
-     );
-     
+      .clk,
+      .write_en(bus.register_file_write_en),
+      .rd_data_sel(bus.register_file_rd_data_sel),
+      .main_alu_result,
+      .data_mem_rdata,
+      .csr_rdata,
+      .pc_plus_4,
+      .instr,
+      .rs1_data,
+      .rs2_data
+   );
+   
    // Immediate generation for all instruction formats
    imm_gen imm_gen(
-     .sel(control_lines.imm_gen_sel),
-     .instr,
-     .imm
-     );
-     
+      .sel(bus.imm_gen_sel),
+      .instr,
+      .imm
+   );
+   
    // Main arithmetic logic unit
    main_alu_wrapper main_alu_wrapper(
-     .arg_sel(control_lines.alu_arg_sel),
-     .alu_op,
-     .rs1_data,
-     .rs2_data,
-     .imm,
-     .pc,
-     .csr_rdata,
-     .main_alu_result,
-     .main_alu_zero
-     );
+      .arg_sel(bus.alu_arg_sel),
+      .alu_op,
+      .rs1_data,
+      .rs2_data,
+      .imm,
+      .pc,
+      .csr_rdata,
+      .main_alu_result,
+      .main_alu_zero
+   );
 
 endmodule
