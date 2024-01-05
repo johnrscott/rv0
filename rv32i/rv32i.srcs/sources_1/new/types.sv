@@ -1,5 +1,21 @@
 package types;
 
+   typedef enum bit [6:0] {
+      OP_LUI = 7'b0110111,
+      OP_AUIPC = 7'b0010111,
+      OP_JAL = 7'b1101111,
+      OP_JALR = 7'b1100111,
+      OP_IMM = 7'b0010011,
+      OP_IMM_32 = 7'b0011011,
+      OP = 7'b0110011,
+      OP_32 = 7'b0111011,
+      OP_BRANCH = 7'b1100011,
+      OP_LOAD = 7'b0000011,
+      OP_STORE = 7'b0100011,
+      OP_MISC_MEM = 7'b0001111,
+      OP_SYSTEM = 7'b1110011
+   } opcode_t;
+   
    typedef enum bit [2:0] {
       FUNCT3_ADD = 3'b000, // Also sub
       FUNCT3_SLL = 3'b001,
@@ -90,7 +106,7 @@ package types;
       bit [19:15] rs1;
       funct3_t funct3;
       bit [11:7] rd;
-      bit [6:0]	 opcode;
+      opcode_t opcode;
    } r_type_t;
 
    typedef struct packed {
@@ -98,7 +114,7 @@ package types;
       bit [19:15] rs1;
       funct3_t funct3;
       bit [11:7] rd;      
-      bit [6:0] opcode;
+      opcode_t opcode;
    } i_type_t;
 
    /// Same as I-type, but imm fields is replaced
@@ -108,7 +124,7 @@ package types;
       bit [19:15] rs1;
       funct3_t funct3;
       bit [11:7] rd;
-      bit [6:0] opcode;
+      opcode_t opcode;
    } csr_r_type_t;
 
    /// Same as I-type, but imm fields is replaced
@@ -119,7 +135,7 @@ package types;
       bit [19:15] uimm;
       funct3_t funct3;
       bit [11:7]  rd;
-      bit [6:0]	  opcode;
+      opcode_t opcode;
    } csr_i_type_t;
    
    typedef struct packed {
@@ -128,7 +144,7 @@ package types;
       bit [19:15] rs1;
       funct3_t funct3;
       bit [11:7]  imm4_0;
-      bit [6:0]	  opcode;
+      opcode_t opcode;
    } s_type_t;
    
    typedef struct packed {
@@ -139,13 +155,13 @@ package types;
       funct3_t funct3;
       bit [11:8]  imm4_1;
       bit	  imm11;
-      bit [6:0]	  opcode;
+      opcode_t opcode;
    } b_type_t;
    
    typedef struct packed {
       bit [31:12] imm31_12;
       bit [11:7] rd;
-      bit [6:0]	 opcode;
+      opcode_t opcode;
    } u_type_t;
    
    typedef struct packed {
@@ -154,7 +170,7 @@ package types;
       bit	  imm11;
       bit [19:12] imm19_12;
       bit [11:7]  rd;      
-      bit [6:0]	  opcode;
+      opcode_t opcode;
    } j_type_t;
 
    typedef union packed {

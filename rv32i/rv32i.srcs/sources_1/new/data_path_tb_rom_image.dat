@@ -1,4 +1,1 @@
-dead
-beef
-0a0a
-1234
+000203b7 // lui x7, 32 (load 32 into high 20 bits of x7)
