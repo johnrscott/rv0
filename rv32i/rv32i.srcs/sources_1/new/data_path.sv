@@ -109,6 +109,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    
    // Register file
    register_file_wrapper register_file_wrapper(
+      .rstn(bus.rstn),
       .clk,
       .write_en(bus.register_file_write_en),
       .rd_data_sel(bus.register_file_rd_data_sel),

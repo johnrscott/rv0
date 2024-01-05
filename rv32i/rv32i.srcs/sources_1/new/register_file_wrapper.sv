@@ -21,6 +21,7 @@ import types::instr_t;
 /// for lui instruction
 ///
 module register_file_wrapper(
+   input	 rstn,
    input	 clk,			    // for writing
    input	 write_en,		    // 1 to write data to rd; 0 otherwise
    input	 rd_data_sel_t rd_data_sel, // pick what to write to rd	
@@ -37,6 +38,7 @@ module register_file_wrapper(
    bit [31:0] 	rd_data;
    
    register_file register_file_0(
+      .rstn,
       .clk,
       .write_en,
       .rd_data,
