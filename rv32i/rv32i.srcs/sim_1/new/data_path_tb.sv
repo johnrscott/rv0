@@ -32,10 +32,11 @@ module data_path_tb;
       // Initialise control signals
       bus.reset_control();
       
-      // Do lui
+      // Do lui (out of sync with pc?)
       @(bus.status_cb) begin
 	 bus.status_cb.register_file_write_en <= 1;
-	 bus.status_cb.register_file_rd_data_sel <= types::MAIN_ALU_RESULT;
+	 bus.status_cb.imm_gen_sel <= types::U_TYPE;
+	 bus.status_cb.register_file_rd_data_sel <= types::LUI_IMM;
       end
       
    end
