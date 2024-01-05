@@ -48,6 +48,14 @@ module data_path_tb;
       // Wait to come out of reset
       @(bus.status_cb iff rstn);
 
+      // Offset the monitor by a cycle so that
+      // the outputs are measured after the drive
+      @(bus.status_cb);
+      
+      // Check lui worked
+      assert(data_path.read_register(7) == 'h20000)
+	else $error("lui: x7 is wrong");
+      
    end
    
 endmodule

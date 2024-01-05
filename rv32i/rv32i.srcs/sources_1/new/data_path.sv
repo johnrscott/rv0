@@ -143,4 +143,13 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .main_alu_zero
    );
 
+   /// Read the nth register in the integer register file
+   /// (for simulation)
+   function read_register(int n);
+      if (n == 0)
+	return 0;
+      else
+	return register_file_wrapper.register_file.register[n-1];
+   endfunction
+   
 endmodule

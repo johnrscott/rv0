@@ -37,7 +37,7 @@ module register_file_wrapper(
 
    bit [31:0] 	rd_data;
    
-   register_file register_file_0(
+   register_file register_file(
       .rstn,
       .clk,
       .write_en,
