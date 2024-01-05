@@ -12,15 +12,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="174.001 ns"></ZoomEndTime>
-      <Cursor1Time time="43.000 ns"></Cursor1Time>
+      <ZoomStartTime time="19,983.750 ns"></ZoomStartTime>
+      <ZoomEndTime time="20,051.651 ns"></ZoomEndTime>
+      <Cursor1Time time="20,000.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="175"></NameColumnWidth>
-      <ValueColumnWidth column_width="230"></ValueColumnWidth>
+      <NameColumnWidth column_width="260"></NameColumnWidth>
+      <ValueColumnWidth column_width="336"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="6" />
+   <WVObjectSize size="7" />
    <wvobject type="logic" fp_name="/data_path_tb/bus/status/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -36,6 +36,40 @@
    <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr">
       <obj_property name="ElementShortName">instr</obj_property>
       <obj_property name="ObjectShortName">instr</obj_property>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.r_type">
+         <obj_property name="ElementShortName">.r_type</obj_property>
+         <obj_property name="ObjectShortName">.r_type</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.i_type">
+         <obj_property name="ElementShortName">.i_type</obj_property>
+         <obj_property name="ObjectShortName">.i_type</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.s_type">
+         <obj_property name="ElementShortName">.s_type</obj_property>
+         <obj_property name="ObjectShortName">.s_type</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.b_type">
+         <obj_property name="ElementShortName">.b_type</obj_property>
+         <obj_property name="ObjectShortName">.b_type</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.u_type">
+         <obj_property name="ElementShortName">.u_type</obj_property>
+         <obj_property name="ObjectShortName">.u_type</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.j_type">
+         <obj_property name="ElementShortName">.j_type</obj_property>
+         <obj_property name="ObjectShortName">.j_type</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.csr_r_type">
+         <obj_property name="ElementShortName">.csr_r_type</obj_property>
+         <obj_property name="ObjectShortName">.csr_r_type</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/data_path_tb/dut/instr_mem/instr.csr_i_type">
+         <obj_property name="ElementShortName">.csr_i_type</obj_property>
+         <obj_property name="ObjectShortName">.csr_i_type</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="vbus" fp_name="vbus161">
       <obj_property name="label">Control</obj_property>
@@ -124,5 +158,11 @@
          <obj_property name="ElementShortName">main_alu_zero</obj_property>
          <obj_property name="ObjectShortName">main_alu_zero</obj_property>
       </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/data_path_tb/dut/register_file_wrapper/register_file_0/register">
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="ElementShortName">register[1:31][31:0]</obj_property>
+      <obj_property name="ObjectShortName">register[1:31][31:0]</obj_property>
+      <obj_property name="label">Integer Registers</obj_property>
    </wvobject>
 </wave_config>

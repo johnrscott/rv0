@@ -117,6 +117,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
       .csr_rdata,
       .pc_plus_4,
       .instr,
+      .lui_imm(imm),
       .rs1_data,
       .rs2_data
    );
