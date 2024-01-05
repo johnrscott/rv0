@@ -15,6 +15,14 @@ package types;
       bit op_mod; // Changes add to sub, or srl to sra
       funct3_t op;
    } alu_op_t; 
+
+   /// Picks the source for the next program counter
+   typedef enum bit [1:0] {
+      PC_SEL_PC_PLUS_4,
+      PC_SEL_MEPC,
+      PC_SEL_MASK_ALU,
+      PC_SEL_PC_PLUS_OFFSET
+   } pc_sel_t;
    
    /// Pick the sources for the inputs to
    /// the main ALU.
@@ -63,20 +71,20 @@ package types;
    /// not-simulate-struct-assignments-in-c
    /// locking-blocks-correctly?language=en_US
    ///
-   typedef struct packed {
-      logic        mret;			    // whether the data path should execute an mret
+   class control_lines_t;
       instr_format_t imm_gen_sel;           // select which immediate format to extract
       alu_arg_sel_t alu_arg_sel;	    // pick the ALU operation
-      bit [1:0]	 data_mem_width;	    // pick the load/store access width
-      bit [1:0]	 pc_sel;		    // choose how to calculate the next program counter
-      bit [1:0]	 csr_wdata_sel;             // pick write data source for CSR bus
-      bit	 register_file_write_en;    // whether to write to rd
-      bit [2:0]	 register_file_rd_data_sel; // select source for write to rd
-      bit	 data_mem_write_en;	    // whether to write to data memory bus
-      bit	 csr_write_en;		    // whether to write to CSR bus
+      logic [1:0]	 data_mem_width;	    // pick the load/store access width
+      pc_sel_t	 pc_sel;		    // choose how to calculate the next program counter
+      logic [1:0]	 csr_wdata_sel;             // pick write data source for CSR bus
+      logic		 register_file_write_en;    // whether to write to rd
+      logic [2:0]	 register_file_rd_data_sel; // select source for write to rd
+      logic	 data_mem_write_en;	    // whether to write to data memory bus
+      logic	 csr_write_en;		    // whether to write to CSR bus
       logic	 trap;			    // whether to execute an (interrupt or exception) trap
-      bit [31:0] exception_mcause;	    // for an exception, what is the mcause value
-   } control_lines_t;
+      logic	 mret;			    // whether the data path should execute an mret
+      logic [31:0] exception_mcause;	    // for an exception, what is the mcause value
+   endclass
    
    /// Data path outputs for control unit
    typedef struct {
