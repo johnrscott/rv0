@@ -38,6 +38,7 @@ import types::pc_sel_t;
 /// a fully combinational single-cycle design).
 ///
 module pc(
+   input	     rstn,
    input	     clk,	      // the clock (pc updates on rising edge)	
    input	     pc_sel_t sel,    // select the next pc for normal program flow
    input [31:0]	     mepc,	      // the pc to use for mret
@@ -65,10 +66,13 @@ module pc(
    end
    
    always_ff @(posedge clk) begin
-      if(trap)
-        pc <= trap_vector;
+      if (!rstn)
+	pc <= 0;
       else
-        pc <= maybe_next_pc;
+	if(trap)
+          pc <= trap_vector;
+	else
+          pc <= maybe_next_pc;
    end
    
 endmodule

@@ -41,6 +41,16 @@ Interrupts are always handled "first", before executing an instruction. An inter
 . The control unit reads the interrupt flag, and sets control lines to raise an interrupt trap, instead of decoding the instruction.
 . On the next rising clock edge, the CPU state is modified so as to raise the interrupt (program counter set to interrupt vector, CSRs modified, etc.)
 
+=== Clocking and Reset
+
+The design will use a single global clock `clk`, and flip-flops will change on the rising clock edge.
+
+A global synchronous active-low reset `rstn` will reset the state of the processor:
+
+* Set the program counter to zero
+* Set all the integer registers to zero
+* Set all the CSRs to default values (disabled interrupts)
+
 == Data Path
 
 === Main ALU

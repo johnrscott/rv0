@@ -5,7 +5,7 @@ import types::pc_sel_t;
 import types::csr_wdata_sel_t;
 import types::rd_data_sel_t;
 
-interface control_bus(input bit clk);
+interface control_bus(input bit clk, rstn);
      
    // Originally the signals in this interface
    // were bundled into two structs (control_lines_t
@@ -69,7 +69,7 @@ interface control_bus(input bit clk);
       output instr, instr_addr_mis, instr_access_fault,
 	     interrupt, data_mem_claim, csr_claim,
 	     main_alu_result, main_alu_zero,
-      input  clk, imm_gen_sel, alu_arg_sel, data_mem_width,
+      input  clk, rstn, imm_gen_sel, alu_arg_sel, data_mem_width,
 	     pc_sel, csr_wdata_sel, register_file_write_en,
 	     register_file_rd_data_sel, data_mem_write_en,
 	     csr_write_en, trap, mret, exception_mcause

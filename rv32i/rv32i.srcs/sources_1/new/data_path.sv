@@ -33,6 +33,7 @@ module data_path #(parameter string ROM_FILE = "rom_image.mem") (
    // Provides and updates the program counter   
    pc pc_wrapper(
       .clk,
+      .rstn(bus.rstn),
       .sel(bus.pc_sel),
       .mepc,
       .trap_vector,

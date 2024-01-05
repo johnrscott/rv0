@@ -38,7 +38,7 @@ module control_unit(
 	UP_IMM: begin
 	   // lui and auipc
 	   bus.register_file_write_en = 1;
-	   bus.register_file_rd_data_sel = 3'b100;
+	   bus.register_file_rd_data_sel = types::MAIN_ALU_RESULT;
 	end
 	REG_REG:;
 	REG_IMM:;
